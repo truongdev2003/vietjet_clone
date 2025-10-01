@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nhắc nhở check-in</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+            text-align: center;
+            padding: 30px;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 300;
+        }
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .content {
+            padding: 40px 30px;
+        }
+        .urgent-notice {
+            background: linear-gradient(135deg, #FF6B35, #FF8E53);
+            color: white;
+            padding: 25px;
+            border-radius: 10px;
+            margin: 25px 0;
+            text-align: center;
+        }
+        .flight-info {
+            background-color: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            padding: 25px;
+            margin: 20px 0;
+        }
+        .flight-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .route-info {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin: 20px 0;
+            font-size: 18px;
+        }
+        .airport {
+            text-align: center;
+            flex: 1;
+        }
+        .airport-code {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .route-arrow {
+            flex: 0 0 auto;
+            margin: 0 20px;
+            color: #FF6B35;
+            font-size: 24px;
+        }
+        .departure-info {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .time-large {
+            font-size: 32px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .checkin-btn {
+            display: inline-block;
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+            text-decoration: none;
+            padding: 20px 40px;
+            border-radius: 30px;
+            font-weight: bold;
+            font-size: 18px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+            margin: 20px 0;
+        }
+        .checkin-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
+        }
+        .countdown {
+            background-color: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 25px 0;
+            text-align: center;
+        }
+        .countdown-number {
+            font-size: 48px;
+            font-weight: bold;
+            color: #FF6B35;
+            margin: 10px 0;
+        }
+        .important-reminders {
+            background-color: #e8f4fd;
+            border-left: 4px solid #2196F3;
+            padding: 20px;
+            margin: 25px 0;
+        }
+        .footer {
+            background-color: #2c3e50;
+            color: white;
+            text-align: center;
+            padding: 20px;
+            font-size: 14px;
+        }
+        .footer a {
+            color: #4CAF50;
+            text-decoration: none;
+        }
+        @media (max-width: 600px) {
+            .container {
+                margin: 0;
+                box-shadow: none;
+            }
+            .content {
+                padding: 20px 15px;
+            }
+            .route-info {
+                flex-direction: column;
+                text-align: center;
+            }
+            .route-arrow {
+                transform: rotate(90deg);
+                margin: 10px 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">✈️ VietJet Air</div>
+            <h1>⏰ Đã đến giờ check-in!</h1>
+        </div>
+        
+        <div class="content">
+            <div class="urgent-notice">
+                <h2 style="margin: 0 0 10px 0;">🚨 THÔNG BÁO QUAN TRỌNG</h2>
+                <p style="margin: 0; font-size: 18px;">Check-in online đã mở cho chuyến bay của bạn!</p>
+            </div>
+            
+            <p style="font-size: 18px; color: #2c3e50;">
+                Xin chào <strong>{{passengerName}}</strong>,
+            </p>
+            
+            <p>Chuyến bay của bạn sẽ khởi hành trong vòng 24 giờ tới. Hãy check-in online ngay để tiết kiệm thời gian tại sân bay!</p>
+            
+            <div class="flight-info">
+                <div class="flight-number">✈️ {{flightNumber}}</div>
+                
+                <div class="route-info">
+                    <div class="airport">
+                        <div class="airport-code">{{route.departure.code}}</div>
+                        <div style="font-size: 14px; color: #666;">{{route.departure.name}}</div>
+                    </div>
+                    <div class="route-arrow">→</div>
+                    <div class="airport">
+                        <div class="airport-code">{{route.arrival.code}}</div>
+                        <div style="font-size: 14px; color: #666;">{{route.arrival.name}}</div>
+                    </div>
+                </div>
+                
+                <div class="departure-info">
+                    <div style="font-size: 16px; opacity: 0.9;">📅 Ngày khởi hành</div>
+                    <div style="font-size: 20px; font-weight: bold;">{{departureDate}}</div>
+                    <div style="font-size: 16px; opacity: 0.9; margin-top: 10px;">🛫 Giờ khởi hành</div>
+                    <div class="time-large">{{departureTime}}</div>
+                    {{#if terminal}}
+                    <div style="font-size: 16px; opacity: 0.9; margin-top: 10px;">🏢 Terminal {{terminal}}</div>
+                    {{/if}}
+                </div>
+            </div>
+            
+            <div class="countdown">
+                <h3 style="margin: 0 0 10px 0; color: #2c3e50;">⏱️ Thời gian check-in còn lại</h3>
+                <div class="countdown-number">24h</div>
+                <p style="margin: 0; color: #666;">Check-in đóng 1 giờ trước giờ khởi hành</p>
+            </div>
+            
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="{{checkInUrl}}" class="checkin-btn">
+                    ✅ CHECK-IN NGAY
+                </a>
+                <p style="margin-top: 15px; font-size: 14px; color: #666;">
+                    Mã đặt chỗ: <strong>{{bookingReference}}</strong>
+                </p>
+            </div>
+            
+            <div class="important-reminders">
+                <h3 style="margin-top: 0; color: #2c3e50;">📋 Lưu ý quan trọng</h3>
+                <ul style="margin: 10px 0; padding-left: 20px;">
+                    <li><strong>Giấy tờ tùy thân:</strong> Mang theo CMND/Hộ chiếu còn hạn</li>
+                    <li><strong>Có mặt tại sân bay:</strong> Trước 1.5 giờ (nội địa) / 2 giờ (quốc tế)</li>
+                    <li><strong>Hành lý xách tay:</strong> Tối đa 7kg, 56x36x23cm</li>
+                    <li><strong>Thẻ lên máy bay:</strong> Có thể in hoặc dùng mobile boarding pass</li>
+                </ul>
+            </div>
+            
+            <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 25px 0;">
+                <h3 style="margin-top: 0; color: #2c3e50;">🎯 Lợi ích check-in online</h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
+                    <div>
+                        <strong>⚡ Tiết kiệm thời gian</strong><br>
+                        <span style="color: #666;">Bỏ qua hàng chờ tại sân bay</span>
+                    </div>
+                    <div>
+                        <strong>🪑 Chọn ghế miễn phí</strong><br>
+                        <span style="color: #666;">Lựa chọn ghế yêu thích</span>
+                    </div>
+                    <div>
+                        <strong>📱 Mobile boarding pass</strong><br>
+                        <span style="color: #666;">Thẻ lên máy bay điện tử</span>
+                    </div>
+                    <div>
+                        <strong>📧 Xác nhận tức thì</strong><br>
+                        <span style="color: #666;">Nhận thông tin cập nhật</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="background-color: #e8f5e8; border: 2px solid #4CAF50; border-radius: 8px; padding: 20px; margin: 25px 0;">
+                <h3 style="margin-top: 0; color: #2c3e50;">📞 Cần hỗ trợ?</h3>
+                <p style="margin: 10px 0;">
+                    <strong>Hotline 24/7:</strong> <a href="tel:19001886" style="color: #4CAF50;">1900 1886</a><br>
+                    <strong>Email:</strong> <a href="mailto:support@vietjet.com" style="color: #4CAF50;">support@vietjet.com</a><br>
+                    <strong>Live Chat:</strong> <a href="{{websiteUrl}}" style="color: #4CAF50;">vietjetair.com</a>
+                </p>
+            </div>
+            
+            <p style="margin-top: 30px;">
+                Chúc bạn có chuyến bay an toàn và thoải mái!<br>
+                <strong>Đội ngũ VietJet Air</strong>
+            </p>
+        </div>
+        
+        <div class="footer">
+            <p>© 2025 VietJet Air. Tất cả quyền được bảo lưu.</p>
+            <p>
+                <a href="{{checkInUrl}}">Check-in ngay</a> |
+                <a href="{{manageBookingUrl}}">Quản lý booking</a> |
+                <a href="mailto:support@vietjet.com">Hỗ trợ</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html>

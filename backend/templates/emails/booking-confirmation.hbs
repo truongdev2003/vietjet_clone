@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Xác nhận đặt vé</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 700px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #FF6B35, #FF8E53);
+            color: white;
+            text-align: center;
+            padding: 30px;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 300;
+        }
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .content {
+            padding: 40px 30px;
+        }
+        .booking-summary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 10px;
+            margin: 25px 0;
+            text-align: center;
+        }
+        .booking-ref {
+            font-size: 32px;
+            font-weight: bold;
+            letter-spacing: 3px;
+            margin: 10px 0;
+        }
+        .flight-card {
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            margin: 20px 0;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .flight-header {
+            background-color: #f8f9fa;
+            padding: 15px 20px;
+            border-bottom: 1px solid #e9ecef;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .flight-details {
+            padding: 20px;
+        }
+        .route {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin: 15px 0;
+            font-size: 18px;
+        }
+        .airport {
+            text-align: center;
+            flex: 1;
+        }
+        .airport-code {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .airport-name {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+        .route-arrow {
+            flex: 0 0 auto;
+            margin: 0 20px;
+            color: #FF6B35;
+            font-size: 24px;
+        }
+        .time-info {
+            display: flex;
+            justify-content: space-between;
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+        }
+        .time-item {
+            text-align: center;
+        }
+        .time-label {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        .time-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .passenger-info {
+            background-color: #e8f4fd;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .total-amount {
+            background: linear-gradient(135deg, #2ecc71, #27ae60);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            margin: 25px 0;
+        }
+        .total-amount .amount {
+            font-size: 32px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .action-buttons {
+            text-align: center;
+            margin: 30px 0;
+        }
+        .btn {
+            display: inline-block;
+            background: linear-gradient(135deg, #FF6B35, #FF8E53);
+            color: white;
+            text-decoration: none;
+            padding: 15px 25px;
+            border-radius: 25px;
+            font-weight: bold;
+            margin: 10px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3);
+        }
+        .btn-secondary {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 107, 53, 0.4);
+        }
+        .important-info {
+            background-color: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 25px 0;
+        }
+        .footer {
+            background-color: #2c3e50;
+            color: white;
+            text-align: center;
+            padding: 20px;
+            font-size: 14px;
+        }
+        .footer a {
+            color: #FF6B35;
+            text-decoration: none;
+        }
+        @media (max-width: 600px) {
+            .container {
+                margin: 0;
+                box-shadow: none;
+            }
+            .content {
+                padding: 20px 15px;
+            }
+            .route {
+                flex-direction: column;
+                text-align: center;
+            }
+            .route-arrow {
+                transform: rotate(90deg);
+                margin: 10px 0;
+            }
+            .time-info {
+                flex-direction: column;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">✈️ VietJet Air</div>
+            <h1>Xác nhận đặt vé thành công!</h1>
+        </div>
+        
+        <div class="content">
+            <p style="font-size: 18px; color: #2c3e50;">
+                Xin chào <strong>{{passengerName}}</strong>,
+            </p>
+            
+            <p>Cảm ơn bạn đã chọn VietJet Air! Chúng tôi xác nhận rằng việc đặt vé của bạn đã thành công.</p>
+            
+            <div class="booking-summary">
+                <h3 style="margin: 0 0 10px 0;">📋 Mã đặt chỗ</h3>
+                <div class="booking-ref">{{bookingReference}}</div>
+                <p style="margin: 10px 0 0 0; opacity: 0.9;">PNR: {{pnr}}</p>
+            </div>
+            
+            {{#each flights}}
+            <div class="flight-card">
+                <div class="flight-header">
+                    ✈️ Chuyến bay {{flightNumber}}
+                </div>
+                <div class="flight-details">
+                    <div class="route">
+                        <div class="airport">
+                            <div class="airport-code">{{this.route.departure.code}}</div>
+                            <div class="airport-name">{{this.route.departure.name}}</div>
+                        </div>
+                        <div class="route-arrow">→</div>
+                        <div class="airport">
+                            <div class="airport-code">{{this.route.arrival.code}}</div>
+                            <div class="airport-name">{{this.route.arrival.name}}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="time-info">
+                        <div class="time-item">
+                            <div class="time-label">📅 Ngày bay</div>
+                            <div class="time-value">{{departureDate}}</div>
+                        </div>
+                        <div class="time-item">
+                            <div class="time-label">🛫 Khởi hành</div>
+                            <div class="time-value">{{departureTime}}</div>
+                        </div>
+                        <div class="time-item">
+                            <div class="time-label">🛬 Hạ cánh</div>
+                            <div class="time-value">{{arrivalTime}}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {{/each}}
+            
+            <div class="passenger-info">
+                <h3 style="margin-top: 0; color: #2c3e50;">👥 Thông tin hành khách</h3>
+                <p><strong>Hành khách chính:</strong> {{passengerName}}</p>
+                <p><strong>Số lượng hành khách:</strong> {{flights.0.passengers.length}} người</p>
+            </div>
+            
+            <div class="total-amount">
+                <h3 style="margin: 0;">💰 Tổng tiền thanh toán</h3>
+                <div class="amount">{{totalAmount}} {{currency}}</div>
+                <p style="margin: 0; opacity: 0.9;">Đã thanh toán thành công</p>
+            </div>
+            
+            <div class="action-buttons">
+                <a href="{{checkInUrl}}" class="btn">✅ Check-in online</a>
+                <a href="{{manageBookingUrl}}" class="btn btn-secondary">📱 Quản lý booking</a>
+            </div>
+            
+            <div class="important-info">
+                <h3 style="margin-top: 0;">⚠️ Thông tin quan trọng</h3>
+                <ul style="margin: 10px 0; padding-left: 20px;">
+                    <li><strong>Check-in online:</strong> Mở 24 giờ trước giờ khởi hành</li>
+                    <li><strong>Mang theo giấy tờ:</strong> CMND/Hộ chiếu còn hạn sử dụng</li>
+                    <li><strong>Có mặt tại sân bay:</strong> Trước 2 giờ (quốc tế) / 1.5 giờ (nội địa)</li>
+                    <li><strong>Hành lý xách tay:</strong> Tối đa 7kg, kích thước 56x36x23cm</li>
+                    <li><strong>Hỗ trợ 24/7:</strong> Hotline 1900 1886</li>
+                </ul>
+            </div>
+            
+            <div style="background-color: #e8f4fd; padding: 20px; border-radius: 8px; margin: 25px 0;">
+                <h3 style="margin-top: 0; color: #2c3e50;">📲 Tải ứng dụng VietJet Air</h3>
+                <p>Quản lý booking, check-in, và nhận thông báo real-time ngay trên điện thoại!</p>
+                <p>
+                    <a href="#" style="color: #FF6B35;">📱 App Store</a> | 
+                    <a href="#" style="color: #FF6B35;">🤖 Google Play</a>
+                </p>
+            </div>
+            
+            <p style="margin-top: 30px;">
+                Chúc bạn có chuyến bay an toàn và vui vẻ!<br>
+                <strong>Đội ngũ VietJet Air</strong>
+            </p>
+        </div>
+        
+        <div class="footer">
+            <p>© 2025 VietJet Air. Tất cả quyền được bảo lưu.</p>
+            <p>
+                <a href="{{manageBookingUrl}}">Quản lý booking</a> |
+                <a href="mailto:support@vietjet.com">Hỗ trợ</a> |
+                <a href="#">Chính sách</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html>

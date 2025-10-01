@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Xác nhận đặt vé - VietJet Air</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            border-bottom: 3px solid #FF6B35;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        .logo {
+            font-size: 28px;
+            font-weight: bold;
+            color: #FF6B35;
+            margin-bottom: 10px;
+        }
+        .guest-notice {
+            background: #FFF3CD;
+            border: 1px solid #FFEAA7;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 25px;
+            color: #856404;
+        }
+        .booking-info {
+            background: #E3F2FD;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+        .booking-ref {
+            font-size: 24px;
+            font-weight: bold;
+            color: #FF6B35;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        .flight-details {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .flight-route {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .flight-time {
+            color: #666;
+            margin-bottom: 5px;
+        }
+        .lookup-instructions {
+            background: #D4EDDA;
+            border: 1px solid #C3E6CB;
+            border-radius: 5px;
+            padding: 20px;
+            margin: 25px 0;
+        }
+        .lookup-instructions h3 {
+            color: #155724;
+            margin-top: 0;
+        }
+        .lookup-instructions ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .lookup-instructions li {
+            margin-bottom: 5px;
+            color: #155724;
+        }
+        .button {
+            display: inline-block;
+            background: #FF6B35;
+            color: white;
+            padding: 12px 25px;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 10px 5px;
+            font-weight: bold;
+            text-align: center;
+        }
+        .button:hover {
+            background: #e55a2b;
+        }
+        .total-amount {
+            font-size: 20px;
+            font-weight: bold;
+            color: #FF6B35;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .footer {
+            border-top: 1px solid #ddd;
+            padding-top: 20px;
+            margin-top: 30px;
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+        }
+        .actions {
+            text-align: center;
+            margin: 25px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">VietJet Air</div>
+            <h2>Xác nhận đặt vé thành công</h2>
+        </div>
+
+        {{#if isGuest}}
+        <div class="guest-notice">
+            <strong>📝 Khách vãng lai:</strong> {{guestMessage}}
+        </div>
+        {{/if}}
+
+        <div class="booking-info">
+            <div class="booking-ref">{{bookingReference}}</div>
+            <p><strong>Hành khách:</strong> {{passengerName}}</p>
+            {{#if pnr}}
+            <p><strong>Mã PNR:</strong> {{pnr}}</p>
+            {{/if}}
+        </div>
+
+        <h3>Chi tiết chuyến bay:</h3>
+        {{#each flights}}
+        <div class="flight-details">
+            <div class="flight-route">
+                <strong>{{flightNumber}}</strong> - {{route}}
+            </div>
+            <div class="flight-time">
+                <strong>Ngày bay:</strong> {{departureDate}}
+            </div>
+            <div class="flight-time">
+                <strong>Giờ khởi hành:</strong> {{departureTime}} | <strong>Giờ đến:</strong> {{arrivalTime}}
+            </div>
+            {{#if seatClass}}
+            <div class="flight-time">
+                <strong>Hạng ghế:</strong> {{seatClass}}
+            </div>
+            {{/if}}
+        </div>
+        {{/each}}
+
+        <div class="total-amount">
+            <strong>Tổng tiền: {{totalAmount}} {{currency}}</strong>
+        </div>
+
+        {{#if isGuest}}
+        <div class="lookup-instructions">
+            <h3>🔍 Hướng dẫn tra cứu booking:</h3>
+            <ul>
+                {{#each lookupInstructions}}
+                <li>{{this}}</li>
+                {{/each}}
+            </ul>
+            <p><strong>Lưu ý:</strong> Bạn có thể tra cứu booking bất cứ lúc nào bằng mã booking và thông tin liên lạc.</p>
+        </div>
+        {{/if}}
+
+        <div class="actions">
+            <a href="{{checkInUrl}}" class="button">✈️ Check-in Online</a>
+            <a href="{{manageBookingUrl}}" class="button">📋 {{#if isGuest}}Tra cứu Booking{{else}}Quản lý Booking{{/if}}</a>
+        </div>
+
+        <div class="footer">
+            <p><strong>VietJet Air</strong></p>
+            <p>Cảm ơn bạn đã chọn VietJet Air!</p>
+            <p>Để được hỗ trợ, vui lòng liên hệ: support@vietjet.com</p>
+            {{#if isGuest}}
+            <p><em>💡 Tip: Tạo tài khoản để quản lý booking dễ dàng hơn trong tương lai!</em></p>
+            {{/if}}
+        </div>
+    </div>
+</body>
+</html>

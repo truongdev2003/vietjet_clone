@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Xác nhận đăng ký</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #FF6B35, #FF8E53);
+            color: white;
+            text-align: center;
+            padding: 30px;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 300;
+        }
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .content {
+            padding: 40px 30px;
+        }
+        .welcome-message {
+            font-size: 18px;
+            margin-bottom: 25px;
+            color: #2c3e50;
+        }
+        .verification-section {
+            background-color: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            padding: 25px;
+            text-align: center;
+            margin: 25px 0;
+        }
+        .btn {
+            display: inline-block;
+            background: linear-gradient(135deg, #FF6B35, #FF8E53);
+            color: white;
+            text-decoration: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-weight: bold;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3);
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 107, 53, 0.4);
+        }
+        .info-box {
+            background-color: #e8f4fd;
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .footer {
+            background-color: #2c3e50;
+            color: white;
+            text-align: center;
+            padding: 20px;
+            font-size: 14px;
+        }
+        .footer a {
+            color: #FF6B35;
+            text-decoration: none;
+        }
+        .social-links {
+            margin: 15px 0;
+        }
+        .social-links a {
+            display: inline-block;
+            margin: 0 10px;
+            color: #bdc3c7;
+            text-decoration: none;
+        }
+        @media (max-width: 600px) {
+            .container {
+                margin: 0;
+                box-shadow: none;
+            }
+            .content {
+                padding: 20px 15px;
+            }
+            .header {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">✈️ VietJet Air</div>
+            <h1>Chào mừng bạn đến với VietJet Air!</h1>
+        </div>
+        
+        <div class="content">
+            <div class="welcome-message">
+                Xin chào <strong>{{userName}}</strong>,
+            </div>
+            
+            <p>Cảm ơn bạn đã đăng ký tài khoản với VietJet Air! Chúng tôi rất vui mừng được chào đón bạn tham gia vào gia đình VietJet Air.</p>
+            
+            <div class="verification-section">
+                <h3 style="color: #2c3e50; margin-top: 0;">🔐 Xác thực email của bạn</h3>
+                <p>Để hoàn tất quá trình đăng ký và bảo mật tài khoản, vui lòng nhấp vào nút bên dưới để xác thực địa chỉ email của bạn:</p>
+                
+                <a href="{{verificationUrl}}" class="btn">Xác thực Email</a>
+                
+                <p style="margin-top: 20px; font-size: 14px; color: #666;">
+                    Hoặc copy và paste link này vào trình duyệt:<br>
+                    <span style="word-break: break-all; color: #007bff;">{{verificationUrl}}</span>
+                </p>
+            </div>
+            
+            <div class="info-box">
+                <p><strong>⚠️ Lưu ý quan trọng:</strong></p>
+                <ul style="margin: 10px 0; padding-left: 20px;">
+                    <li>Link xác thực này có hiệu lực trong <strong>24 giờ</strong></li>
+                    <li>Bạn cần xác thực email để có thể đặt vé và sử dụng đầy đủ các tính năng</li>
+                    <li>Nếu bạn không thực hiện yêu cầu này, tài khoản có thể bị khóa</li>
+                </ul>
+            </div>
+            
+            <h3 style="color: #2c3e50;">🎯 Với tài khoản VietJet Air, bạn có thể:</h3>
+            <ul style="line-height: 1.8;">
+                <li>✅ Đặt vé máy bay nhanh chóng và tiện lợi</li>
+                <li>✅ Quản lý booking và thay đổi lịch trình dễ dàng</li>
+                <li>✅ Check-in online tiết kiệm thời gian</li>
+                <li>✅ Tích lũy điểm thưởng và nhận ưu đãi độc quyền</li>
+                <li>✅ Nhận thông báo về khuyến mãi và ưu đãi đặc biệt</li>
+            </ul>
+            
+            <div class="info-box" style="background-color: #fff3cd; border-left-color: #ffc107;">
+                <p><strong>💡 Mẹo:</strong> Sau khi xác thực thành công, hãy hoàn thiện thông tin cá nhân trong phần "Hồ sơ" để trải nghiệm tốt nhất!</p>
+            </div>
+            
+            <p>Nếu bạn cần hỗ trợ, đừng ngần ngại liên hệ với chúng tôi qua email <a href="mailto:{{supportEmail}}" style="color: #FF6B35;">{{supportEmail}}</a> hoặc hotline <strong>1900 1886</strong>.</p>
+            
+            <p style="margin-top: 30px;">
+                Trân trọng,<br>
+                <strong>Đội ngũ VietJet Air</strong>
+            </p>
+        </div>
+        
+        <div class="footer">
+            <div class="social-links">
+                <a href="https://facebook.com/vietjetair">Facebook</a> |
+                <a href="https://instagram.com/vietjetair">Instagram</a> |
+                <a href="https://twitter.com/vietjetair">Twitter</a>
+            </div>
+            <p>© 2025 VietJet Air. Tất cả quyền được bảo lưu.</p>
+            <p>
+                <a href="{{unsubscribeUrl}}">Hủy đăng ký</a> |
+                <a href="{{privacyUrl}}">Chính sách bảo mật</a> |
+                <a href="{{termsUrl}}">Điều khoản sử dụng</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,470 @@
+const Payment = require('../models/Payment');
+const Booking = require('../models/Booking');
+const { asyncHandler, AppError } = require('../utils/errorHandler');
+const ApiResponse = require('../utils/apiResponse');
+const crypto = require('crypto');
+
+class PaymentController {
+  // Tạo payment intent
+  static createPayment = asyncHandler(async (req, res, next) => {
+    const {
+      bookingId,
+      amount,
+      currency = 'VND',
+      paymentMethod,
+      returnUrl,
+      cancelUrl
+    } = req.body;
+
+    // Validate required fields
+    if (!bookingId || !amount || !paymentMethod) {
+      return next(new AppError('Thiếu thông tin thanh toán', 400));
+    }
+
+    // Check if booking exists and belongs to user
+    const booking = await Booking.findById(bookingId);
+    if (!booking) {
+      return next(new AppError('Không tìm thấy booking', 404));
+    }
+
+    if (req.user && booking.user && booking.user.toString() !== req.user.id) {
+      return next(new AppError('Bạn không có quyền thanh toán cho booking này', 403));
+    }
+
+    if (booking.status !== 'pending_payment') {
+      return next(new AppError('Booking không ở trạng thái chờ thanh toán', 400));
+    }
+
+    // Validate amount matches booking total
+    if (amount !== booking.pricing.total) {
+      return next(new AppError('Số tiền thanh toán không khớp với tổng tiền booking', 400));
+    }
+
+    // Generate payment reference
+    const paymentReference = this.generatePaymentReference();
+
+    // Create payment record
+    const payment = await Payment.create({
+      reference: paymentReference,
+      booking: bookingId,
+      user: req.user ? req.user.id : null,
+      
+      amount: {
+        total: amount,
+        currency: currency,
+        breakdown: {
+          subtotal: booking.pricing.subtotal,
+          taxes: booking.pricing.taxes || 0,
+          fees: booking.pricing.fees || 0,
+          serviceCharges: booking.pricing.serviceCharges || 0,
+          discount: booking.pricing.discount || 0
+        }
+      },
+
+      paymentMethod: {
+        type: paymentMethod.type,
+        card: paymentMethod.card,
+        bankTransfer: paymentMethod.bankTransfer,
+        eWallet: paymentMethod.eWallet,
+        installment: paymentMethod.installment
+      },
+
+      status: 'pending',
+      
+      metadata: {
+        returnUrl,
+        cancelUrl,
+        userAgent: req.headers['user-agent'],
+        ipAddress: req.ip
+      }
+    });
+
+    // Generate payment URL based on payment method
+    let paymentUrl = '';
+    let gatewayResponse = {};
+
+    try {
+      switch (paymentMethod.type) {
+        case 'credit_card':
+        case 'debit_card':
+          gatewayResponse = await this.processCardPayment(payment, paymentMethod);
+          break;
+        case 'bank_transfer':
+          gatewayResponse = await this.processBankTransfer(payment, paymentMethod);
+          break;
+        case 'e_wallet':
+          gatewayResponse = await this.processEWalletPayment(payment, paymentMethod);
+          break;
+        case 'installment':
+          gatewayResponse = await this.processInstallmentPayment(payment, paymentMethod);
+          break;
+        default:
+          return next(new AppError('Phương thức thanh toán không được hỗ trợ', 400));
+      }
+
+      paymentUrl = gatewayResponse.paymentUrl;
+
+      // Update payment with gateway information
+      payment.gateway = {
+        provider: gatewayResponse.provider,
+        transactionId: gatewayResponse.transactionId,
+        paymentUrl: paymentUrl
+      };
+
+      await payment.save();
+
+    } catch (error) {
+      payment.status = 'failed';
+      payment.failure = {
+        code: 'GATEWAY_ERROR',
+        message: error.message,
+        timestamp: new Date()
+      };
+      await payment.save();
+
+      return next(new AppError('Lỗi khi tạo thanh toán: ' + error.message, 500));
+    }
+
+    res.status(201).json(
+      ApiResponse.success('Tạo thanh toán thành công', {
+        payment: {
+          id: payment._id,
+          reference: payment.reference,
+          amount: payment.amount.total,
+          currency: payment.amount.currency,
+          status: payment.status,
+          paymentUrl: paymentUrl
+        },
+        redirectUrl: paymentUrl
+      })
+    );
+  });
+
+  // Xử lý callback từ payment gateway
+  static handlePaymentCallback = asyncHandler(async (req, res, next) => {
+    const { provider } = req.params;
+    const callbackData = req.body;
+
+    let payment;
+    let isSuccess = false;
+    let errorMessage = '';
+
+    try {
+      switch (provider) {
+        case 'vnpay':
+          ({ payment, isSuccess, errorMessage } = await this.handleVNPayCallback(callbackData));
+          break;
+        case 'momo':
+          ({ payment, isSuccess, errorMessage } = await this.handleMoMoCallback(callbackData));
+          break;
+        case 'zalopay':
+          ({ payment, isSuccess, errorMessage } = await this.handleZaloPayCallback(callbackData));
+          break;
+        default:
+          return next(new AppError('Provider không được hỗ trợ', 400));
+      }
+
+      if (isSuccess) {
+        // Update payment status
+        payment.status = 'completed';
+        payment.completedAt = new Date();
+        payment.transaction = {
+          id: callbackData.transactionId || callbackData.orderId,
+          gateway: {
+            provider: provider,
+            transactionId: callbackData.transactionId,
+            responseCode: callbackData.responseCode,
+            responseMessage: callbackData.message || 'Success'
+          },
+          amount: payment.amount.total,
+          currency: payment.amount.currency,
+          completedAt: new Date()
+        };
+
+        await payment.save();
+
+        // Update booking status
+        const booking = await Booking.findById(payment.booking);
+        if (booking) {
+          booking.status = 'confirmed';
+          booking.payment = payment._id;
+          booking.confirmedAt = new Date();
+
+          // Generate tickets for passengers
+          for (const passenger of booking.passengers) {
+            if (!passenger.ticket.ticketNumber) {
+              passenger.ticket.ticketNumber = this.generateTicketNumber();
+            }
+            if (!passenger.ticket.eTicketNumber) {
+              passenger.ticket.eTicketNumber = this.generateETicketNumber();
+            }
+          }
+
+          await booking.save();
+
+          // Update flight inventory (convert held seats to sold)
+          const Inventory = require('../models/Inventory');
+          for (const flightBooking of booking.flights) {
+            await Inventory.findOneAndUpdate(
+              { 
+                flight: flightBooking.flight,
+                'bookingClasses.category': flightBooking.seatClass
+              },
+              { 
+                $inc: { 
+                  'bookingClasses.$.held': -booking.passengers.length,
+                  'bookingClasses.$.sold': booking.passengers.length
+                }
+              }
+            );
+          }
+        }
+
+        // TODO: Send confirmation email/SMS to customer
+
+        res.status(200).json(
+          ApiResponse.success('Thanh toán thành công', {
+            payment,
+            booking: booking
+          })
+        );
+
+      } else {
+        // Update payment status as failed
+        payment.status = 'failed';
+        payment.failure = {
+          code: callbackData.responseCode || 'PAYMENT_FAILED',
+          message: errorMessage || 'Thanh toán thất bại',
+          timestamp: new Date(),
+          gatewayResponse: callbackData
+        };
+
+        await payment.save();
+
+        res.status(400).json(
+          ApiResponse.error('Thanh toán thất bại', errorMessage)
+        );
+      }
+
+    } catch (error) {
+      console.error('Payment callback error:', error);
+      res.status(500).json(
+        ApiResponse.error('Lỗi xử lý callback thanh toán', error.message)
+      );
+    }
+  });
+
+  // Lấy thông tin payment
+  static getPayment = asyncHandler(async (req, res, next) => {
+    const { paymentId } = req.params;
+
+    const payment = await Payment.findById(paymentId)
+      .populate('booking', 'bookingReference passengers flights pricing')
+      .populate('user', 'personalInfo.firstName personalInfo.lastName contactInfo.email');
+
+    if (!payment) {
+      return next(new AppError('Không tìm thấy thanh toán', 404));
+    }
+
+    // Check permission
+    if (req.user && payment.user && payment.user._id.toString() !== req.user.id) {
+      return next(new AppError('Bạn không có quyền xem thanh toán này', 403));
+    }
+
+    res.status(200).json(
+      ApiResponse.success('Lấy thông tin thanh toán thành công', payment)
+    );
+  });
+
+  // Lấy danh sách payments (user)
+  static getUserPayments = asyncHandler(async (req, res, next) => {
+    const {
+      page = 1,
+      limit = 10,
+      status,
+      fromDate,
+      toDate
+    } = req.query;
+
+    const query = { user: req.user.id };
+    
+    if (status) query.status = status;
+    
+    if (fromDate && toDate) {
+      query.createdAt = {
+        $gte: new Date(fromDate),
+        $lte: new Date(toDate)
+      };
+    }
+
+    const skip = (page - 1) * limit;
+
+    const [payments, total] = await Promise.all([
+      Payment.find(query)
+        .populate('booking', 'bookingReference flights.flight')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit)),
+      Payment.countDocuments(query)
+    ]);
+
+    const totalPages = Math.ceil(total / limit);
+
+    res.status(200).json(
+      ApiResponse.success('Lấy danh sách thanh toán thành công', {
+        payments,
+        pagination: {
+          currentPage: parseInt(page),
+          totalPages,
+          totalItems: total,
+          itemsPerPage: parseInt(limit),
+          hasNextPage: page < totalPages,
+          hasPrevPage: page > 1
+        }
+      })
+    );
+  });
+
+  // Hoàn tiền (admin)
+  static refundPayment = asyncHandler(async (req, res, next) => {
+    const { paymentId } = req.params;
+    const { amount, reason } = req.body;
+
+    const payment = await Payment.findById(paymentId);
+    if (!payment) {
+      return next(new AppError('Không tìm thấy thanh toán', 404));
+    }
+
+    if (payment.status !== 'completed') {
+      return next(new AppError('Chỉ có thể hoàn tiền cho thanh toán đã hoàn thành', 400));
+    }
+
+    if (payment.refund && payment.refund.status === 'completed') {
+      return next(new AppError('Thanh toán này đã được hoàn tiền', 400));
+    }
+
+    const refundAmount = amount || payment.amount.total;
+
+    if (refundAmount > payment.amount.total) {
+      return next(new AppError('Số tiền hoàn tiền không thể lớn hơn số tiền gốc', 400));
+    }
+
+    // Process refund with gateway
+    let refundResult;
+    try {
+      refundResult = await this.processRefund(payment, refundAmount, reason);
+    } catch (error) {
+      return next(new AppError('Lỗi khi xử lý hoàn tiền: ' + error.message, 500));
+    }
+
+    // Update payment record
+    payment.refund = {
+      amount: refundAmount,
+      reason: reason || 'Admin refund',
+      status: 'completed',
+      processedAt: new Date(),
+      transactionId: refundResult.transactionId,
+      gatewayResponse: refundResult
+    };
+
+    await payment.save();
+
+    res.status(200).json(
+      ApiResponse.success('Hoàn tiền thành công', payment)
+    );
+  });
+
+  // Helper methods
+  static generatePaymentReference() {
+    return 'PAY' + Date.now().toString() + Math.random().toString(36).substr(2, 5).toUpperCase();
+  }
+
+  static generateTicketNumber() {
+    return '157' + Date.now().toString().slice(-10);
+  }
+
+  static generateETicketNumber() {
+    return 'VJ' + crypto.randomBytes(8).toString('hex').toUpperCase();
+  }
+
+  // Payment method processors (placeholders - implement with actual gateways)
+  static async processCardPayment(payment, paymentMethod) {
+    // TODO: Integrate with actual card payment gateway (VNPay, OnePay, etc.)
+    return {
+      provider: 'vnpay',
+      transactionId: 'TXN' + Date.now(),
+      paymentUrl: `https://sandbox.vnpayment.vn/paymentv2/vpcpay.html?vnp_TxnRef=${payment.reference}`
+    };
+  }
+
+  static async processBankTransfer(payment, paymentMethod) {
+    // TODO: Generate bank transfer instructions
+    return {
+      provider: 'bank_transfer',
+      transactionId: 'BT' + Date.now(),
+      paymentUrl: `/payment/bank-transfer/${payment._id}`
+    };
+  }
+
+  static async processEWalletPayment(payment, paymentMethod) {
+    // TODO: Integrate with e-wallet providers (MoMo, ZaloPay, etc.)
+    const provider = paymentMethod.eWallet.provider;
+    return {
+      provider: provider,
+      transactionId: 'EW' + Date.now(),
+      paymentUrl: `https://${provider}.vn/payment?ref=${payment.reference}`
+    };
+  }
+
+  static async processInstallmentPayment(payment, paymentMethod) {
+    // TODO: Integrate with installment providers
+    return {
+      provider: 'installment',
+      transactionId: 'INS' + Date.now(),
+      paymentUrl: `/payment/installment/${payment._id}`
+    };
+  }
+
+  // Gateway callback handlers (placeholders)
+  static async handleVNPayCallback(callbackData) {
+    // TODO: Implement VNPay callback verification
+    const payment = await Payment.findOne({ reference: callbackData.vnp_TxnRef });
+    return {
+      payment,
+      isSuccess: callbackData.vnp_ResponseCode === '00',
+      errorMessage: callbackData.vnp_ResponseCode !== '00' ? 'VNPay payment failed' : ''
+    };
+  }
+
+  static async handleMoMoCallback(callbackData) {
+    // TODO: Implement MoMo callback verification
+    const payment = await Payment.findOne({ reference: callbackData.orderId });
+    return {
+      payment,
+      isSuccess: callbackData.resultCode === 0,
+      errorMessage: callbackData.resultCode !== 0 ? callbackData.message : ''
+    };
+  }
+
+  static async handleZaloPayCallback(callbackData) {
+    // TODO: Implement ZaloPay callback verification
+    const payment = await Payment.findOne({ reference: callbackData.app_trans_id });
+    return {
+      payment,
+      isSuccess: callbackData.return_code === 1,
+      errorMessage: callbackData.return_code !== 1 ? callbackData.return_message : ''
+    };
+  }
+
+  static async processRefund(payment, amount, reason) {
+    // TODO: Implement actual refund processing with payment gateway
+    return {
+      transactionId: 'REF' + Date.now(),
+      status: 'completed',
+      amount: amount,
+      message: 'Refund processed successfully'
+    };
+  }
+}
+
+module.exports = PaymentController;
