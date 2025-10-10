@@ -6,6 +6,7 @@ const { validateFlightSearch, validateFlightCreate, validateFlightUpdate } = req
 const router = express.Router();
 
 // Public routes
+router.get('/search', validateFlightSearch, FlightController.searchFlights);
 router.post('/search', validateFlightSearch, FlightController.searchFlights);
 router.get('/:flightId', FlightController.getFlightDetails);
 

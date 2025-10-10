@@ -115,16 +115,59 @@ class BookingController {
         return next(new AppError(`Chuyến bay ${flight.flightNumber} không đủ ghế trống`, 400));
       }
 
-      // Get fare for this flight
+      // Find route by departure and arrival airports
+      const Route = require('../models/Route');
+      const route = await Route.findOne({
+        'origin.airport': flight.route.departure.airport._id,
+        'destination.airport': flight.route.arrival.airport._id
+      });
+
+      if (!route) {
+        console.warn(`No route found for flight ${flight.flightNumber}. Using flight pricing instead.`);
+        // Fallback: use pricing from flight object if available
+        if (!flight.pricing || !flight.pricing[seatClass]) {
+          return next(new AppError(`Không tìm thấy giá vé cho chuyến bay ${flight.flightNumber}`, 400));
+        }
+        
+        const flightTotal = flight.pricing[seatClass].base * passengers.length;
+        totalAmount += flightTotal;
+
+        flightDetails.push({
+          flight,
+          fare: null, // No fare found, using flight pricing
+          seatClass,
+          passengerCount: passengers.length,
+          amount: flightTotal
+        });
+        continue;
+      }
+
+      // Get fare for this flight using the route ObjectId
       const fare = await Fare.findOne({
-        route: flight.route,
+        route: route._id,
         cabinClass: seatClass,
         'validity.startDate': { $lte: flight.route.departure.time },
         'validity.endDate': { $gte: flight.route.departure.time }
       });
 
       if (!fare) {
-        return next(new AppError(`Không tìm thấy giá vé cho chuyến bay ${flight.flightNumber}`, 400));
+        console.warn(`No fare found for flight ${flight.flightNumber}. Using flight pricing instead.`);
+        // Fallback: use pricing from flight object
+        if (!flight.pricing || !flight.pricing[seatClass]) {
+          return next(new AppError(`Không tìm thấy giá vé cho chuyến bay ${flight.flightNumber}`, 400));
+        }
+        
+        const flightTotal = flight.pricing[seatClass].base * passengers.length;
+        totalAmount += flightTotal;
+
+        flightDetails.push({
+          flight,
+          fare: null,
+          seatClass,
+          passengerCount: passengers.length,
+          amount: flightTotal
+        });
+        continue;
       }
 
       const flightTotal = (fare.pricing.base + fare.pricing.taxes + fare.pricing.fees) * passengers.length;
@@ -170,48 +213,46 @@ class BookingController {
       bookingReference,
       user: user._id, // Luôn có user (guest hoặc registered)
       
-      // Contact information
-      contact: {
-        title: contactInfo.title,
-        firstName: contactInfo.firstName,
-        lastName: contactInfo.lastName,
+      // Contact information (đúng schema là contactInfo, không phải contact)
+      contactInfo: {
         email: contactInfo.email,
         phone: contactInfo.phone,
+        alternatePhone: contactInfo.alternatePhone,
         address: contactInfo.address
       },
 
       // Flight information
       flights: flights.map((flightBooking, index) => ({
         flight: flightBooking.flightId,
-        seatClass: flightBooking.seatClass || 'economy',
-        bookingClass: 'Y', // Default booking class
-        status: 'confirmed'
+        type: index === 0 ? 'outbound' : 'return', // outbound cho chuyến đầu, return cho chuyến về
+        passengers: passengers.map(passenger => ({
+          ...passenger,
+          ticket: {
+            seatClass: flightBooking.seatClass || 'economy',
+            ticketNumber: this.generateTicketNumber(),
+            eTicketNumber: this.generateETicketNumber()
+          }
+        }))
       })),
 
-      // Passengers
-      passengers: passengers.map(passenger => ({
-        ...passenger,
-        ticket: {
-          seatClass: flights[0].seatClass || 'economy',
-          ticketNumber: this.generateTicketNumber(),
-          eTicketNumber: this.generateETicketNumber()
-        }
-      })),
-
-      // Services
-      services,
-
-      // Pricing
-      pricing: {
-        subtotal: totalAmount - serviceAmount,
-        serviceCharges: serviceAmount,
-        discount: discountAmount,
-        total: finalAmount,
-        currency: 'VND'
+      // Payment information
+      payment: {
+        totalAmount: finalAmount,
+        currency: 'VND',
+        breakdown: {
+          baseFare: totalAmount - serviceAmount,
+          taxes: 0,
+          fees: 0,
+          services: serviceAmount,
+          discount: discountAmount
+        },
+        // Map paymentMethod to valid enum values
+        method: paymentMethod === 'momo' ? 'e_wallet' : (paymentMethod || 'e_wallet'),
+        status: 'pending'
       },
 
       // Status
-      status: 'pending_payment',
+      status: 'pending', // Chờ thanh toán
       
       // Metadata
       metadata: {
@@ -249,8 +290,7 @@ class BookingController {
 
     // Gửi email xác nhận booking (cho cả guest và registered user)
     try {
-      const EmailService = require('../services/emailService');
-      const emailService = new EmailService();
+      const emailService = require('../services/emailService');
       
       await emailService.sendBookingConfirmation(user, booking, flightDetails);
     } catch (emailError) {
@@ -258,12 +298,62 @@ class BookingController {
       // Không fail booking nếu email lỗi
     }
 
+    // Tạo payment URL nếu có paymentMethod
+    let paymentUrl = null;
+    let paymentId = null;
+    
+    if (paymentMethod) {
+      try {
+        const PaymentGatewayService = require('../services/paymentGatewayService');
+        const orderInfo = `VietJet - ${bookingReference} - ${passengers.length} hành khách`;
+        
+        let paymentResult;
+        switch (paymentMethod) {
+          case 'momo':
+          case 'e_wallet':
+            paymentResult = await PaymentGatewayService.createMoMoPayment(
+              booking._id,
+              finalAmount,
+              orderInfo
+            );
+            break;
+          case 'vnpay':
+            paymentResult = await PaymentGatewayService.createVNPayPayment(
+              booking._id,
+              finalAmount,
+              orderInfo,
+              req.ip
+            );
+            break;
+          case 'zalopay':
+            paymentResult = await PaymentGatewayService.createZaloPayPayment(
+              booking._id,
+              finalAmount,
+              orderInfo
+            );
+            break;
+          default:
+            console.warn(`Payment method ${paymentMethod} not supported for auto-payment`);
+        }
+        
+        if (paymentResult) {
+          paymentUrl = paymentResult.paymentUrl;
+          paymentId = paymentResult.paymentId;
+        }
+      } catch (paymentError) {
+        console.error('Failed to create payment:', paymentError);
+        // Không fail booking nếu tạo payment lỗi
+      }
+    }
+
     const responseData = {
       booking,
       paymentInfo: {
         amount: finalAmount,
         currency: 'VND',
-        reference: bookingReference
+        reference: bookingReference,
+        paymentUrl,
+        paymentId
       }
     };
 
@@ -276,9 +366,8 @@ class BookingController {
       };
     }
 
-    res.status(201).json(
-      ApiResponse.success('Tạo booking thành công', responseData)
-    );
+    const response = ApiResponse.created(responseData, 'Tạo booking thành công');
+    response.send(res);
   });
 
   // Lấy thông tin booking
@@ -300,9 +389,8 @@ class BookingController {
       return next(new AppError('Bạn không có quyền xem booking này', 403));
     }
 
-    res.status(200).json(
-      ApiResponse.success('Lấy thông tin booking thành công', booking)
-    );
+    const response = ApiResponse.success(booking, 'Lấy thông tin booking thành công');
+    response.send(res);
   });
 
   // Tìm booking bằng reference
@@ -326,9 +414,8 @@ class BookingController {
       return next(new AppError('Không tìm thấy booking với thông tin đã cung cấp', 404));
     }
 
-    res.status(200).json(
-      ApiResponse.success('Tìm booking thành công', booking)
-    );
+    const response = ApiResponse.success(booking, 'Tìm booking thành công');
+    response.send(res);
   });
 
   // Tra cứu booking cho guest bằng reference (GET endpoint)
@@ -397,9 +484,8 @@ class BookingController {
       }
     };
 
-    res.status(200).json(
-      ApiResponse.success('Tra cứu booking thành công', responseData)
-    );
+    const response = ApiResponse.success(responseData, 'Tra cứu booking thành công');
+    response.send(res);
   });
 
   // Lấy danh sách booking của user
@@ -438,8 +524,7 @@ class BookingController {
 
     const totalPages = Math.ceil(total / limit);
 
-    res.status(200).json(
-      ApiResponse.success('Lấy danh sách booking thành công', {
+    const response = ApiResponse.success({
         bookings,
         pagination: {
           currentPage: parseInt(page),
@@ -449,8 +534,8 @@ class BookingController {
           hasNextPage: page < totalPages,
           hasPrevPage: page > 1
         }
-      })
-    );
+      }, 'Lấy danh sách booking thành công');
+    response.send(res);
   });
 
   // Cập nhật thông tin booking
@@ -482,9 +567,8 @@ class BookingController {
       { new: true, runValidators: true }
     );
 
-    res.status(200).json(
-      ApiResponse.success('Cập nhật booking thành công', updatedBooking)
-    );
+    const response = ApiResponse.success(updatedBooking, 'Cập nhật booking thành công');
+    response.send(res);
   });
 
   // Hủy booking
@@ -553,8 +637,7 @@ class BookingController {
       );
     }
 
-    res.status(200).json(
-      ApiResponse.success('Hủy booking thành công', {
+    const response = ApiResponse.success({
         booking,
         refundInfo: {
           originalAmount: booking.pricing.total,
@@ -562,8 +645,8 @@ class BookingController {
           refundAmount,
           refundStatus: 'pending'
         }
-      })
-    );
+      }, 'Hủy booking thành công');
+    response.send(res);
   });
 
   // Check-in trực tuyến
@@ -611,9 +694,8 @@ class BookingController {
     booking.checkInStatus = 'checked_in';
     await booking.save();
 
-    res.status(200).json(
-      ApiResponse.success('Check-in thành công', booking)
-    );
+    const response = ApiResponse.success(booking, 'Check-in thành công');
+    response.send(res);
   });
 
   // Helper methods

@@ -321,13 +321,13 @@ const aircraftSchema = new mongoose.Schema({
   }
 }, {
   timestamps: true,
-  toJSON: { virtuals: true },
-  toObject: { virtuals: true }
+  toJSON: { virtuals: false },  // Tạm thời disable virtuals
+  toObject: { virtuals: false }
 });
 
 // Virtual cho tuổi máy bay
 aircraftSchema.virtual('age').get(function() {
-  if (!this.history.deliveryDate) return null;
+  if (!this.history?.deliveryDate) return null;
   const now = new Date();
   const delivered = new Date(this.history.deliveryDate);
   return Math.floor((now - delivered) / (365.25 * 24 * 60 * 60 * 1000));
@@ -335,12 +335,14 @@ aircraftSchema.virtual('age').get(function() {
 
 // Virtual cho tên đầy đủ
 aircraftSchema.virtual('fullName').get(function() {
-  return `${this.aircraft.manufacturer} ${this.aircraft.model} (${this.registration})`;
+  const manufacturer = this.aircraft?.manufacturer || 'Unknown';
+  const model = this.aircraft?.model || 'Unknown';
+  return `${manufacturer} ${model} (${this.registration})`;
 });
 
 // Virtual cho trạng thái bảo trì
 aircraftSchema.virtual('maintenanceStatus').get(function() {
-  if (!this.maintenance.nextDue.date) return 'unknown';
+  if (!this.maintenance?.nextDue?.date) return 'unknown';
   const now = new Date();
   const dueDate = new Date(this.maintenance.nextDue.date);
   const daysUntilDue = Math.ceil((dueDate - now) / (24 * 60 * 60 * 1000));
@@ -388,5 +390,22 @@ aircraftSchema.methods.updateUtilization = function(hours, cycles) {
   
   return this.save();
 };
+
+// Virtual fields để dễ truy cập
+aircraftSchema.virtual('manufacturer').get(function() {
+  return this.aircraft?.manufacturer;
+});
+
+aircraftSchema.virtual('model').get(function() {
+  return this.aircraft?.model;
+});
+
+aircraftSchema.virtual('variant').get(function() {
+  return this.aircraft?.variant;
+});
+
+// Ensure virtual fields are serialized
+aircraftSchema.set('toJSON', { virtuals: true });
+aircraftSchema.set('toObject', { virtuals: true });
 
 module.exports = mongoose.model('Aircraft', aircraftSchema);

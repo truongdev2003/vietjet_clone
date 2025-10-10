@@ -82,8 +82,7 @@ const flightSchema = new mongoose.Schema({
   aircraft: {
     type: {
       type: String,
-      required: true,
-      enum: ['Airbus A320', 'Airbus A321', 'Boeing 737', 'Boeing 787', 'ATR 72']
+      required: true
     },
     registration: String,  // VD: VN-A123
     age: Number,

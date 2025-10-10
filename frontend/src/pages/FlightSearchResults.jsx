@@ -1,255 +1,21 @@
-import axios from 'axios';
 import { ArrowRight } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import styled from 'styled-components';
-
-const SearchResultsContainer = styled.div`
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 20px;
-`;
-
-const SearchSummary = styled.div`
-  background: white;
-  border-radius: 12px;
-  padding: 20px;
-  margin-bottom: 20px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-`;
-
-const SummaryText = styled.h2`
-  color: #2d3436;
-  margin-bottom: 10px;
-  font-size: 24px;
-`;
-
-const SearchDetails = styled.div`
-  color: #636e72;
-  font-size: 16px;
-`;
-
-const FilterSortContainer = styled.div`
-  display: flex;
-  gap: 20px;
-  margin-bottom: 20px;
-  
-  @media (max-width: 768px) {
-    flex-direction: column;
-  }
-`;
-
-const FilterButton = styled.button`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 20px;
-  background: white;
-  border: 2px solid #ddd;
-  border-radius: 8px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  
-  &:hover {
-    border-color: #00b894;
-    color: #00b894;
-  }
-  
-  &.active {
-    background: #00b894;
-    color: white;
-    border-color: #00b894;
-  }
-`;
-
-const SortSelect = styled.select`
-  padding: 12px 16px;
-  border: 2px solid #ddd;
-  border-radius: 8px;
-  font-size: 14px;
-  background: white;
-  cursor: pointer;
-  
-  &:focus {
-    outline: none;
-    border-color: #00b894;
-  }
-`;
-
-const FlightsList = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-`;
-
-const FlightCard = styled.div`
-  background: white;
-  border-radius: 12px;
-  padding: 24px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  transition: all 0.3s ease;
-  
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-  }
-`;
-
-const FlightHeader = styled.div`
-  display: flex;
-  justify-content: between;
-  align-items: center;
-  margin-bottom: 20px;
-`;
-
-const AirlineName = styled.h3`
-  color: #00b894;
-  font-size: 18px;
-  font-weight: 600;
-  margin: 0;
-`;
-
-const FlightNumber = styled.span`
-  color: #636e72;
-  font-size: 14px;
-  background: #f8f9fa;
-  padding: 4px 8px;
-  border-radius: 4px;
-`;
-
-const FlightDetails = styled.div`
-  display: grid;
-  grid-template-columns: 1fr auto 1fr auto;
-  gap: 20px;
-  align-items: center;
-  margin-bottom: 20px;
-  
-  @media (max-width: 768px) {
-    grid-template-columns: 1fr;
-    gap: 16px;
-    text-align: center;
-  }
-`;
-
-const TimeLocation = styled.div`
-  text-align: ${props => props.align || 'left'};
-`;
-
-const Time = styled.div`
-  font-size: 24px;
-  font-weight: 600;
-  color: #2d3436;
-  margin-bottom: 4px;
-`;
-
-const Location = styled.div`
-  color: #636e72;
-  font-size: 16px;
-  margin-bottom: 2px;
-`;
-
-const LocationCode = styled.div`
-  color: #636e72;
-  font-size: 14px;
-`;
-
-const FlightPath = styled.div`
-  display: flex;
-  align-items: center;
-  flex-direction: column;
-  gap: 8px;
-  
-  @media (max-width: 768px) {
-    flex-direction: row;
-    justify-content: center;
-  }
-`;
-
-const Duration = styled.div`
-  color: #636e72;
-  font-size: 14px;
-  text-align: center;
-`;
-
-const PlaneIcon = styled.div`
-  color: #00b894;
-  display: flex;
-  align-items: center;
-`;
-
-const PriceSection = styled.div`
-  text-align: right;
-  
-  @media (max-width: 768px) {
-    text-align: center;
-  }
-`;
-
-const Price = styled.div`
-  font-size: 28px;
-  font-weight: 700;
-  color: #00b894;
-  margin-bottom: 4px;
-`;
-
-const PriceNote = styled.div`
-  color: #636e72;
-  font-size: 12px;
-`;
-
-const SeatInfo = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-top: 16px;
-  border-top: 1px solid #f1f3f4;
-`;
-
-const AvailableSeats = styled.div`
-  color: #636e72;
-  font-size: 14px;
-`;
-
-const SelectButton = styled.button`
-  background: linear-gradient(135deg, #00b894, #00a085);
-  color: white;
-  border: none;
-  padding: 12px 24px;
-  border-radius: 8px;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 15px rgba(0, 184, 148, 0.3);
-  }
-`;
-
-const LoadingMessage = styled.div`
-  text-align: center;
-  padding: 40px;
-  color: #636e72;
-  font-size: 18px;
-`;
-
-const NoResults = styled.div`
-  text-align: center;
-  padding: 40px;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-`;
+import Footer from '../components/Footer';
+import Header from '../components/Header';
+import flightService from '../services/flightService';
 
 const FlightSearchResults = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [flights, setFlights] = useState([]);
+  const [returnFlights, setReturnFlights] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState('departure');
   const [searchParams, setSearchParams] = useState({});
+  const [selectedFlightId, setSelectedFlightId] = useState(null);
+  const [selectedOutboundFlight, setSelectedOutboundFlight] = useState(null);
+  const [bookingStep, setBookingStep] = useState('outbound'); // 'outbound' or 'return'
 
   useEffect(() => {
     const urlParams = new URLSearchParams(location.search);
@@ -269,20 +35,35 @@ const FlightSearchResults = () => {
   const searchFlights = async (params) => {
     try {
       setLoading(true);
-      const response = await axios.get('http://localhost:5000/api/flights/search', {
-        params: {
-          from: params.from,
-          to: params.to,
-          departureDate: params.departureDate,
-          returnDate: params.returnDate,
-          passengers: params.passengers,
-          tripType: params.tripType
-        }
+      
+      // Use flightService instead of direct axios call
+      const response = await flightService.searchFlights({
+        from: params.from,
+        to: params.to,
+        departureDate: params.departureDate,
+        returnDate: params.returnDate,
+        passengers: params.passengers,
+        tripType: params.tripType
       });
       
-      setFlights(response.data.outbound || []);
+      console.log('Flight search response:', response);
+      
+      // Handle response structure from ApiResponse.success
+      if (response.success && response.data) {
+        setFlights(response.data.outboundFlights || []);
+        
+        // For round-trip, also set return flights
+        if (params.tripType === 'round-trip' && response.data.returnFlights) {
+          setReturnFlights(response.data.returnFlights || []);
+        }
+      } else {
+        setFlights([]);
+        setReturnFlights([]);
+      }
     } catch (error) {
       console.error('Error searching flights:', error);
+      setFlights([]);
+      setReturnFlights([]);
     } finally {
       setLoading(false);
     }
@@ -312,113 +93,241 @@ const FlightSearchResults = () => {
     const sorted = [...flights];
     switch (sortBy) {
       case 'price':
-        return sorted.sort((a, b) => a.price.economy - b.price.economy);
+        return sorted.sort((a, b) => (a.fare?.totalPrice || 0) - (b.fare?.totalPrice || 0));
       case 'duration':
-        return sorted.sort((a, b) => a.duration - b.duration);
+        return sorted.sort((a, b) => (a.route?.duration?.scheduled || 0) - (b.route?.duration?.scheduled || 0));
       case 'departure':
       default:
-        return sorted.sort((a, b) => new Date(a.departure.time) - new Date(b.departure.time));
+        return sorted.sort((a, b) => 
+          new Date(a.route?.departure?.time) - new Date(b.route?.departure?.time)
+        );
     }
   };
 
   const handleSelectFlight = (flight) => {
-    // Navigate to booking page with flight details
-    navigate('/booking', { 
-      state: { 
-        flight,
-        searchParams 
-      } 
-    });
+    console.log('Selected flight:', flight);
+    console.log('Search params:', searchParams);
+    
+    setSelectedFlightId(flight._id);
+    
+    // For round-trip, handle outbound and return flight selection
+    if (searchParams.tripType === 'round-trip') {
+      if (bookingStep === 'outbound') {
+        // Selected outbound flight, now show return flights
+        setSelectedOutboundFlight(flight);
+        setBookingStep('return');
+        setSelectedFlightId(null); // Reset for return flight selection
+        // Scroll to top to show return flight selection
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        // Selected return flight, navigate to booking page with both flights
+        navigate('/booking', { 
+          state: { 
+            outboundFlight: selectedOutboundFlight,
+            returnFlight: flight,
+            searchParams 
+          } 
+        });
+      }
+    } else {
+      // One-way trip, navigate directly to booking page
+      navigate('/booking', { 
+        state: { 
+          flight,
+          searchParams 
+        } 
+      });
+    }
+  };
+  
+  const handleBackToOutbound = () => {
+    setBookingStep('outbound');
+    setSelectedOutboundFlight(null);
+    setSelectedFlightId(null);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const sortedFlights = sortFlights(flights, sortBy);
+  const sortedFlights = sortFlights(
+    bookingStep === 'outbound' ? flights : returnFlights, 
+    sortBy
+  );
+  
+  const isRoundTrip = searchParams.tripType === 'round-trip';
+  const showingReturnFlights = isRoundTrip && bookingStep === 'return';
 
   if (loading) {
     return (
-      <SearchResultsContainer>
-        <LoadingMessage>Đang tìm kiếm chuyến bay...</LoadingMessage>
-      </SearchResultsContainer>
+      <>
+        <Header />
+        <div className="max-w-7xl mx-auto px-5 py-5">
+          <div className="text-center py-10 text-gray-500 text-lg">
+            Đang tìm kiếm chuyến bay...
+          </div>
+        </div>
+        <Footer />
+      </>
     );
   }
 
   return (
-    <SearchResultsContainer>
-      <SearchSummary>
-        <SummaryText>
-          {searchParams.from} → {searchParams.to}
-        </SummaryText>
-        <SearchDetails>
-          {searchParams.departureDate} • {searchParams.passengers} hành khách
-          {searchParams.tripType === 'round-trip' && ` • Về ${searchParams.returnDate}`}
-        </SearchDetails>
-      </SearchSummary>
+    <>
+      <Header />
+      <div className="max-w-7xl mx-auto px-5 py-5">
+      
+      {/* Flight Selection Step Indicator for Round Trip */}
+      {isRoundTrip && (
+        <div className="bg-white rounded-xl p-5 mb-5 shadow-lg">
+          <div className="flex items-center justify-center gap-4">
+            <div className={`flex items-center gap-2 ${bookingStep === 'outbound' ? 'text-[#EE0033] font-semibold' : 'text-gray-400'}`}>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${bookingStep === 'outbound' ? 'bg-[#EE0033] text-white' : 'bg-gray-200'}`}>
+                1
+              </div>
+              <span>Chọn chuyến đi</span>
+            </div>
+            <div className="w-16 h-0.5 bg-gray-300"></div>
+            <div className={`flex items-center gap-2 ${bookingStep === 'return' ? 'text-[#EE0033] font-semibold' : 'text-gray-400'}`}>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${bookingStep === 'return' ? 'bg-[#EE0033] text-white' : 'bg-gray-200'}`}>
+                2
+              </div>
+              <span>Chọn chuyến về</span>
+            </div>
+          </div>
+        </div>
+      )}
 
-      {flights.length > 0 && (
-        <FilterSortContainer>
-          <SortSelect 
+      {/* Selected Outbound Flight Display */}
+      {showingReturnFlights && selectedOutboundFlight && (
+        <div className="bg-green-50 border-2 border-green-200 rounded-xl p-5 mb-5">
+          <div className="flex justify-between items-center">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800 mb-2">✓ Chuyến đi đã chọn</h3>
+              <div className="text-gray-600">
+                {selectedOutboundFlight.flightNumber} • {formatTime(selectedOutboundFlight.route?.departure?.time)} - {formatTime(selectedOutboundFlight.route?.arrival?.time)} • {formatPrice(selectedOutboundFlight.fare?.totalPrice || 0)}
+              </div>
+            </div>
+            <button
+              onClick={handleBackToOutbound}
+              className="px-4 py-2 bg-white border-2 border-[#EE0033] text-[#EE0033] rounded-lg hover:bg-red-50 transition-colors font-semibold"
+            >
+              Đổi chuyến đi
+            </button>
+          </div>
+        </div>
+      )}
+      
+      <div className="bg-white rounded-xl p-5 mb-5 shadow-lg">
+        <h2 className="text-gray-800 mb-2 text-2xl font-semibold">
+          {showingReturnFlights ? (
+            `${searchParams.to} → ${searchParams.from}`
+          ) : (
+            `${searchParams.from} → ${searchParams.to}`
+          )}
+        </h2>
+        <div className="text-gray-500 text-base">
+          {showingReturnFlights ? searchParams.returnDate : searchParams.departureDate} • {searchParams.passengers} hành khách
+        </div>
+      </div>
+
+      {(flights.length > 0 || returnFlights.length > 0) && (
+        <div className="flex gap-5 mb-5 flex-col md:flex-row">
+          <select
+            className="px-4 py-3 border-2 border-gray-300 rounded-lg text-sm bg-white cursor-pointer focus:outline-none focus:border-primary-500"
             value={sortBy} 
             onChange={(e) => setSortBy(e.target.value)}
           >
             <option value="departure">Sắp xếp theo giờ khởi hành</option>
             <option value="price">Sắp xếp theo giá</option>
             <option value="duration">Sắp xếp theo thời gian bay</option>
-          </SortSelect>
-        </FilterSortContainer>
+          </select>
+        </div>
       )}
 
-      <FlightsList>
+      <div className="flex flex-col gap-4">
         {sortedFlights.length === 0 ? (
-          <NoResults>
-            <h3>Không tìm thấy chuyến bay</h3>
-            <p>Vui lòng thử với các tiêu chí tìm kiếm khác.</p>
-          </NoResults>
+          <div className="text-center py-10 bg-white rounded-xl shadow-lg">
+            <h3 className="text-xl font-semibold mb-2">Không tìm thấy chuyến bay</h3>
+            <p className="text-gray-500">Vui lòng thử với các tiêu chí tìm kiếm khác.</p>
+          </div>
         ) : (
           sortedFlights.map((flight) => (
-            <FlightCard key={flight._id}>
-              <FlightHeader>
-                <AirlineName>{flight.airline}</AirlineName>
-                <FlightNumber>{flight.flightNumber}</FlightNumber>
-              </FlightHeader>
+            <div 
+              key={flight._id}
+              className="bg-white rounded-xl p-6 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl"
+            >
+              <div className="flex justify-between items-center mb-5">
+                <h3 className="text-[#EE0033] text-lg font-semibold m-0">
+                  {flight.airline?.name || 'VietJet Air'}
+                </h3>
+                <span className="text-gray-500 text-sm bg-gray-100 px-2 py-1 rounded">
+                  {flight.flightNumber}
+                </span>
+              </div>
               
-              <FlightDetails>
-                <TimeLocation>
-                  <Time>{formatTime(flight.departure.time)}</Time>
-                  <Location>{flight.departure.airport.city}</Location>
-                  <LocationCode>{flight.departure.airport.code}</LocationCode>
-                </TimeLocation>
+              <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr_auto] gap-5 items-center mb-5">
+                <div className="text-center md:text-left">
+                  <div className="text-2xl font-semibold text-gray-800 mb-1">
+                    {formatTime(flight.route?.departure?.time)}
+                  </div>
+                  <div className="text-gray-500 text-base mb-0.5">
+                    {flight.route?.departure?.airport?.location?.city?.vi || 
+                     flight.route?.departure?.airport?.name?.vi}
+                  </div>
+                  <div className="text-gray-500 text-sm">
+                    {flight.route?.departure?.airport?.code?.iata}
+                  </div>
+                </div>
                 
-                <FlightPath>
-                  <Duration>{formatDuration(flight.duration)}</Duration>
-                  <PlaneIcon>
+                <div className="flex items-center flex-col gap-2">
+                  <div className="text-gray-500 text-sm text-center">
+                    {formatDuration(flight.route?.duration?.scheduled || 0)}
+                  </div>
+                  <div className="text-[#EE0033] flex items-center">
                     <ArrowRight size={20} />
-                  </PlaneIcon>
-                </FlightPath>
+                  </div>
+                </div>
                 
-                <TimeLocation align="right">
-                  <Time>{formatTime(flight.arrival.time)}</Time>
-                  <Location>{flight.arrival.airport.city}</Location>
-                  <LocationCode>{flight.arrival.airport.code}</LocationCode>
-                </TimeLocation>
+                <div className="text-center md:text-right">
+                  <div className="text-2xl font-semibold text-gray-800 mb-1">
+                    {formatTime(flight.route?.arrival?.time)}
+                  </div>
+                  <div className="text-gray-500 text-base mb-0.5">
+                    {flight.route?.arrival?.airport?.location?.city?.vi || 
+                     flight.route?.arrival?.airport?.name?.vi}
+                  </div>
+                  <div className="text-gray-500 text-sm">
+                    {flight.route?.arrival?.airport?.code?.iata}
+                  </div>
+                </div>
                 
-                <PriceSection>
-                  <Price>{formatPrice(flight.price.economy)}</Price>
-                  <PriceNote>1 người lớn</PriceNote>
-                </PriceSection>
-              </FlightDetails>
+                <div className="text-center md:text-right">
+                  <div className="text-3xl font-bold text-[#EE0033] mb-1">
+                    {formatPrice(flight.fare?.totalPrice || 0)}
+                  </div>
+                  <div className="text-gray-500 text-xs">
+                    1 người lớn
+                  </div>
+                </div>
+              </div>
               
-              <SeatInfo>
-                <AvailableSeats>
-                  Còn {flight.seats.economy.available} ghế trống
-                </AvailableSeats>
-                <SelectButton onClick={() => handleSelectFlight(flight)}>
-                  Chọn chuyến bay
-                </SelectButton>
-              </SeatInfo>
-            </FlightCard>
+              <div className="flex justify-between items-center pt-4 border-t border-gray-100">
+                <div className="text-gray-500 text-sm">
+                  Còn {flight.availableSeats || 0} ghế trống
+                </div>
+                <button 
+                  onClick={() => handleSelectFlight(flight)}
+                  disabled={selectedFlightId === flight._id}
+                  className="bg-gradient-to-br from-[#EE0033] to-[#CC0000] text-white border-none px-6 py-3 rounded-lg text-base font-semibold cursor-pointer transition-all duration-300 hover:-translate-y-1 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                >
+                  {selectedFlightId === flight._id ? 'Đang chuyển...' : (showingReturnFlights ? 'Chọn chuyến về' : 'Chọn chuyến bay')}
+                </button>
+              </div>
+            </div>
           ))
         )}
-      </FlightsList>
-    </SearchResultsContainer>
+      </div>
+      </div>
+      <Footer />
+    </>
   );
 };
 

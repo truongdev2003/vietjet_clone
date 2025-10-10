@@ -68,6 +68,25 @@ router.post('/zalopay/callback', asyncHandler(async (req, res, next) => {
   });
 }));
 
+// MoMo callback (IPN)
+router.post('/momo/callback', asyncHandler(async (req, res, next) => {
+  const result = await PaymentGatewayService.handleMoMoCallback(req.body);
+  
+  res.json({
+    resultCode: result.success ? 0 : 1,
+    message: result.success ? 'Confirm Success' : 'Confirm Failed'
+  });
+}));
+
+// MoMo return URL (redirect user)
+router.get('/momo/return', asyncHandler(async (req, res, next) => {
+  const { orderId, resultCode, message } = req.query;
+  
+  // Redirect về frontend với kết quả
+  const redirectUrl = `${process.env.FRONTEND_URL}/payment/${resultCode === '0' ? 'success' : 'failed'}?orderId=${orderId}&message=${encodeURIComponent(message)}`;
+  res.redirect(redirectUrl);
+}));
+
 // Kiểm tra trạng thái payment
 router.get('/status/:paymentId', asyncHandler(async (req, res, next) => {
   const { paymentId } = req.params;

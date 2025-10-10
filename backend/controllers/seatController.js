@@ -4,6 +4,73 @@ const User = require('../models/User');
 const { asyncHandler, AppError } = require('../utils/errorHandler');
 const ApiResponse = require('../utils/apiResponse');
 
+// Hàm tạo sơ đồ ghế mặc định dựa trên loại máy bay
+const generateDefaultSeatMap = (aircraft) => {
+  const seatMap = [];
+  const config = aircraft?.configuration || {};
+  
+  // Cấu hình mặc định cho từng loại máy bay
+  const defaultConfigs = {
+    'Airbus A320': { economy: { rows: 25, seatsPerRow: 6 }, business: { rows: 3, seatsPerRow: 4 } },
+    'Airbus A321': { economy: { rows: 30, seatsPerRow: 6 }, business: { rows: 4, seatsPerRow: 4 } },
+    'Boeing 737': { economy: { rows: 25, seatsPerRow: 6 }, business: { rows: 3, seatsPerRow: 4 } },
+    'Boeing 787': { economy: { rows: 30, seatsPerRow: 9 }, business: { rows: 5, seatsPerRow: 6 } },
+    'ATR 72': { economy: { rows: 18, seatsPerRow: 4 }, business: { rows: 0, seatsPerRow: 0 } }
+  };
+  
+  const aircraftType = aircraft?.type || 'Airbus A320';
+  const aircraftConfig = defaultConfigs[aircraftType] || defaultConfigs['Airbus A320'];
+  
+  const columns = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+  let rowNumber = 1;
+  
+  // Tạo ghế hạng Business
+  if (aircraftConfig.business.rows > 0) {
+    for (let i = 0; i < aircraftConfig.business.rows; i++) {
+      const seats = [];
+      for (let j = 0; j < aircraftConfig.business.seatsPerRow; j++) {
+        const seatNumber = `${rowNumber}${columns[j]}`;
+        seats.push({
+          seatNumber,
+          class: 'business',
+          type: j === 0 ? 'window' : j === aircraftConfig.business.seatsPerRow - 1 ? 'window' : 'aisle',
+          status: 'available',
+          price: 500000,
+          features: ['extra_legroom', 'priority_boarding', 'premium_meal']
+        });
+      }
+      seatMap.push({ row: rowNumber, seats });
+      rowNumber++;
+    }
+  }
+  
+  // Tạo ghế hạng Economy
+  for (let i = 0; i < aircraftConfig.economy.rows; i++) {
+    const seats = [];
+    const isExitRow = i === 5 || i === 15; // Hàng thoát hiểm
+    
+    for (let j = 0; j < aircraftConfig.economy.seatsPerRow; j++) {
+      const seatNumber = `${rowNumber}${columns[j]}`;
+      const isWindow = j === 0 || j === aircraftConfig.economy.seatsPerRow - 1;
+      const isAisle = j === Math.floor(aircraftConfig.economy.seatsPerRow / 2) - 1 || 
+                      j === Math.floor(aircraftConfig.economy.seatsPerRow / 2);
+      
+      seats.push({
+        seatNumber,
+        class: 'economy',
+        type: isWindow ? 'window' : isAisle ? 'aisle' : isExitRow ? 'exit_row' : 'middle',
+        status: 'available',
+        price: isExitRow ? 200000 : 100000,
+        features: isExitRow ? ['extra_legroom'] : []
+      });
+    }
+    seatMap.push({ row: rowNumber, seats });
+    rowNumber++;
+  }
+  
+  return seatMap;
+};
+
 class SeatController {
   // Lấy sơ đồ ghế của chuyến bay
   static getSeatMap = asyncHandler(async (req, res, next) => {
@@ -22,31 +89,52 @@ class SeatController {
     const bookings = await Booking.find({
       'flights.flight': flightId,
       status: { $in: ['confirmed', 'checked_in'] }
-    }).select('flights.passengers.ticket.seatNumber').lean();
+    }).select('flights').lean();
 
     // Tạo danh sách ghế đã được đặt
     const occupiedSeats = new Set();
     bookings.forEach(booking => {
-      booking.flights.forEach(flightBooking => {
-        if (flightBooking.flight.toString() === flightId) {
-          flightBooking.passengers.forEach(passenger => {
-            if (passenger.ticket.seatNumber) {
-              occupiedSeats.add(passenger.ticket.seatNumber);
+      if (booking.flights && Array.isArray(booking.flights)) {
+        booking.flights.forEach(flightBooking => {
+          // Kiểm tra flightBooking.flight tồn tại trước khi gọi toString()
+          if (flightBooking.flight && flightBooking.flight.toString() === flightId) {
+            if (flightBooking.passengers && Array.isArray(flightBooking.passengers)) {
+              flightBooking.passengers.forEach(passenger => {
+                if (passenger.ticket && passenger.ticket.seatNumber) {
+                  occupiedSeats.add(passenger.ticket.seatNumber);
+                }
+              });
             }
-          });
-        }
-      });
+          }
+        });
+      }
     });
 
+    // Tự động tạo seatMap nếu chưa có
+    let seatMapData = flight.seatMap;
+    if (!seatMapData || !Array.isArray(seatMapData) || seatMapData.length === 0) {
+      // Tạo seatMap mặc định dựa trên cấu hình máy bay
+      seatMapData = generateDefaultSeatMap(flight.aircraft);
+      
+      // Lưu lại seatMap vào database (không cần await vì không ảnh hưởng response)
+      Flight.findByIdAndUpdate(flightId, { seatMap: seatMapData }).catch(err => {
+        console.error('Error saving seatMap:', err);
+      });
+    }
+
     // Cập nhật trạng thái ghế trong seatMap
-    const seatMap = flight.seatMap.map(row => ({
+    const seatMap = seatMapData.map(row => ({
       ...row,
-      seats: row.seats.map(seat => ({
+      seats: row.seats && Array.isArray(row.seats) ? row.seats.map(seat => ({
         ...seat,
         status: occupiedSeats.has(seat.seatNumber) ? 'occupied' : seat.status,
         available: !occupiedSeats.has(seat.seatNumber) && seat.status === 'available'
-      }))
+      })) : []
     }));
+
+    // Tính tổng số ghế
+    const totalSeats = seatMap.reduce((total, row) => total + (row.seats?.length || 0), 0);
+    const availableCount = totalSeats - occupiedSeats.size;
 
     const response = ApiResponse.success({
       flight: {
@@ -57,7 +145,8 @@ class SeatController {
       },
       seatMap,
       occupiedCount: occupiedSeats.size,
-      availableCount: flight.totalAvailable - occupiedSeats.size
+      totalSeats,
+      availableCount
     }, 'Lấy sơ đồ ghế thành công');
 
     response.send(res);
@@ -431,6 +520,90 @@ class SeatController {
 
     return reasons.length > 0 ? reasons.join(', ') : 'Ghế có sẵn';
   }
+
+  // ==================== ADMIN ENDPOINTS ====================
+  
+  // Admin: Cập nhật cấu hình ghế
+  static updateSeatConfig = asyncHandler(async (req, res, next) => {
+    const { flightId, seatNumber } = req.params;
+    const { class: seatClass, type, price, features, status } = req.body;
+
+    const flight = await Flight.findById(flightId);
+    if (!flight) {
+      return next(new AppError('Không tìm thấy chuyến bay', 404));
+    }
+
+    // Tìm ghế trong seatMap
+    let seatFound = false;
+    for (const row of flight.seatMap) {
+      const seatIndex = row.seats.findIndex(s => s.seatNumber === seatNumber);
+      if (seatIndex !== -1) {
+        // Cập nhật thông tin ghế
+        if (seatClass) row.seats[seatIndex].class = seatClass;
+        if (type) row.seats[seatIndex].type = type;
+        if (price !== undefined) row.seats[seatIndex].price = price;
+        if (features) row.seats[seatIndex].features = features;
+        if (status) row.seats[seatIndex].status = status;
+        
+        seatFound = true;
+        break;
+      }
+    }
+
+    if (!seatFound) {
+      return next(new AppError('Không tìm thấy ghế', 404));
+    }
+
+    await flight.save();
+
+    const response = ApiResponse.success({
+      flightId: flight._id,
+      flightNumber: flight.flightNumber,
+      seatNumber,
+      updatedConfig: { class: seatClass, type, price, features, status }
+    }, 'Cập nhật cấu hình ghế thành công');
+
+    response.send(res);
+  });
+
+  // Admin: Block/Unblock ghế
+  static toggleSeatBlock = asyncHandler(async (req, res, next) => {
+    const { flightId, seatNumber } = req.params;
+    const { isBlocked } = req.body;
+
+    const flight = await Flight.findById(flightId);
+    if (!flight) {
+      return next(new AppError('Không tìm thấy chuyến bay', 404));
+    }
+
+    // Tìm ghế trong seatMap
+    let seatFound = false;
+    for (const row of flight.seatMap) {
+      const seatIndex = row.seats.findIndex(s => s.seatNumber === seatNumber);
+      if (seatIndex !== -1) {
+        // Cập nhật trạng thái block
+        row.seats[seatIndex].status = isBlocked ? 'blocked' : 'available';
+        seatFound = true;
+        break;
+      }
+    }
+
+    if (!seatFound) {
+      return next(new AppError('Không tìm thấy ghế', 404));
+    }
+
+    await flight.save();
+
+    const response = ApiResponse.success({
+      flightId: flight._id,
+      flightNumber: flight.flightNumber,
+      seatNumber,
+      isBlocked,
+      newStatus: isBlocked ? 'blocked' : 'available'
+    }, `${isBlocked ? 'Block' : 'Unblock'} ghế thành công`);
+
+    response.send(res);
+  });
 }
 
 module.exports = SeatController;

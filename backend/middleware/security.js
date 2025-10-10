@@ -160,17 +160,36 @@ const securityHeaders = helmet({
   },
 });
 
-const mongoSanitization = mongoSanitize({
-  replaceWith: "_",
-  onSanitize: ({ req, key }) => {
-    securityLogger.warn("MongoDB injection attempt detected", {
-      ip: req.ip,
-      userAgent: req.get("User-Agent"),
-      endpoint: req.originalUrl,
-      suspiciousKey: key,
-    });
-  },
-});
+// Sử dụng custom middleware để sanitize thay vì dùng trực tiếp mongoSanitize
+// Vì Express v5 không cho phép ghi đè req.query
+const mongoSanitization = (req, res, next) => {
+  // Sanitize body
+  if (req.body) {
+    req.body = mongoSanitize.sanitize(req.body, { replaceWith: '_' });
+  }
+  
+  // Sanitize params
+  if (req.params) {
+    req.params = mongoSanitize.sanitize(req.params, { replaceWith: '_' });
+  }
+  
+  // Không sanitize query vì Express v5 chỉ có getter
+  // Thay vào đó, kiểm tra và từ chối request nếu có ký tự nguy hiểm
+  if (req.query) {
+    const queryString = JSON.stringify(req.query);
+    if (queryString.includes('$') || queryString.includes('.')) {
+      securityLogger.warn("MongoDB injection attempt detected in query", {
+        ip: req.ip,
+        userAgent: req.get("User-Agent"),
+        endpoint: req.originalUrl,
+        query: req.query,
+      });
+      return res.status(400).json({ error: 'Invalid query parameters' });
+    }
+  }
+  
+  next();
+};
 
 const parameterPollutionProtection = hpp({
   whitelist: ["sort", "fields", "page", "limit", "filters"],

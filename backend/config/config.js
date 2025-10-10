@@ -31,7 +31,7 @@ module.exports = {
   API_VERSION: 'v1',
   API_PREFIX: '/api',
   
-  CORS_ORIGIN: process.env.CORS_ORIGIN || 'http://localhost:3000',
+  CORS_ORIGIN: process.env.CORS_ORIGIN || 'http://localhost:5173',
   
   SESSION_SECRET: process.env.SESSION_SECRET || 'your-session-secret',
   
@@ -45,6 +45,14 @@ module.exports = {
   
   PAYMENT_GATEWAY_URL: process.env.PAYMENT_GATEWAY_URL,
   PAYMENT_GATEWAY_KEY: process.env.PAYMENT_GATEWAY_KEY,
+  
+  // MoMo Payment Gateway
+  MOMO_PARTNER_CODE: process.env.MOMO_PARTNER_CODE,
+  MOMO_ACCESS_KEY: process.env.MOMO_ACCESS_KEY,
+  MOMO_SECRET_KEY: process.env.MOMO_SECRET_KEY,
+  MOMO_ENDPOINT: process.env.MOMO_ENDPOINT,
+  MOMO_RETURN_URL: process.env.MOMO_RETURN_URL,
+  MOMO_NOTIFY_URL: process.env.MOMO_NOTIFY_URL,
   
   LOG_LEVEL: process.env.LOG_LEVEL || 'info',
   LOG_FILE: process.env.LOG_FILE || 'logs/app.log',

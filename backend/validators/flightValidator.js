@@ -12,31 +12,73 @@ const handleValidationErrors = (req, res, next) => {
   next();
 };
 
-// Flight search validation
+// Flight search validation - supports both GET (query) and POST (body)
 const validateFlightSearch = [
-  body('from')
-    .notEmpty()
-    .withMessage('Điểm khởi hành là bắt buộc')
+  // Check both query and body for 'from' parameter
+  query('from')
+    .optional()
     .isLength({ min: 2 })
-    .withMessage('Mã sân bay phải có ít nhất 2 ký tự'),
+    .withMessage('Mã sân bay khởi hành phải có ít nhất 2 ký tự'),
+  
+  body('from')
+    .optional()
+    .isLength({ min: 2 })
+    .withMessage('Mã sân bay khởi hành phải có ít nhất 2 ký tự'),
+  
+  // Check both query and body for 'to' parameter
+  query('to')
+    .optional()
+    .isLength({ min: 2 })
+    .withMessage('Mã sân bay đến phải có ít nhất 2 ký tự'),
   
   body('to')
-    .notEmpty()
-    .withMessage('Điểm đến là bắt buộc')
+    .optional()
     .isLength({ min: 2 })
-    .withMessage('Mã sân bay phải có ít nhất 2 ký tự'),
+    .withMessage('Mã sân bay đến phải có ít nhất 2 ký tự'),
   
-  body('departureDate')
-    .notEmpty()
-    .withMessage('Ngày khởi hành là bắt buộc')
+  // Check both query and body for 'departureDate' parameter
+  query('departureDate')
+    .optional()
     .isISO8601()
     .withMessage('Ngày khởi hành không hợp lệ')
     .custom((value) => {
+      if (!value) return true;
       const date = new Date(value);
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       if (date < today) {
         throw new Error('Ngày khởi hành không thể trong quá khứ');
+      }
+      return true;
+    }),
+  
+  body('departureDate')
+    .optional()
+    .isISO8601()
+    .withMessage('Ngày khởi hành không hợp lệ')
+    .custom((value) => {
+      if (!value) return true;
+      const date = new Date(value);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (date < today) {
+        throw new Error('Ngày khởi hành không thể trong quá khứ');
+      }
+      return true;
+    }),
+  
+  // Check both query and body for 'returnDate' parameter
+  query('returnDate')
+    .optional()
+    .isISO8601()
+    .withMessage('Ngày khứ hồi không hợp lệ')
+    .custom((value, { req }) => {
+      if (value && (req.query.departureDate || req.body.departureDate)) {
+        const returnDate = new Date(value);
+        const departureDate = new Date(req.query.departureDate || req.body.departureDate);
+        if (returnDate <= departureDate) {
+          throw new Error('Ngày khứ hồi phải sau ngày khởi hành');
+        }
       }
       return true;
     }),
@@ -56,6 +98,10 @@ const validateFlightSearch = [
       return true;
     }),
   
+  // Passengers validation
+  query('passengers')
+    .optional(),
+  
   body('passengers.adults')
     .optional()
     .isInt({ min: 1, max: 9 })
@@ -71,15 +117,46 @@ const validateFlightSearch = [
     .isInt({ min: 0, max: 4 })
     .withMessage('Số em bé phải từ 0 đến 4'),
   
+  // Seat class validation
+  query('seatClass')
+    .optional()
+    .isIn(['economy', 'premium_economy', 'business', 'first'])
+    .withMessage('Hạng ghế không hợp lệ'),
+    
   body('seatClass')
     .optional()
     .isIn(['economy', 'premium_economy', 'business', 'first'])
     .withMessage('Hạng ghế không hợp lệ'),
   
+  // Trip type validation
+  query('tripType')
+    .optional()
+    .isIn(['one-way', 'round-trip', 'one_way', 'round_trip', 'multi_city'])
+    .withMessage('Loại hành trình không hợp lệ'),
+    
   body('tripType')
     .optional()
     .isIn(['one_way', 'round_trip', 'multi_city'])
     .withMessage('Loại hành trình không hợp lệ'),
+  
+  // Custom validation to ensure required fields are present in either query or body
+  (req, res, next) => {
+    const from = req.query.from || req.body.from;
+    const to = req.query.to || req.body.to;
+    const departureDate = req.query.departureDate || req.body.departureDate;
+    
+    if (!from) {
+      return next(new AppError('Điểm khởi hành là bắt buộc', 400));
+    }
+    if (!to) {
+      return next(new AppError('Điểm đến là bắt buộc', 400));
+    }
+    if (!departureDate) {
+      return next(new AppError('Ngày khởi hành là bắt buộc', 400));
+    }
+    
+    next();
+  },
   
   handleValidationErrors
 ];
@@ -129,8 +206,15 @@ const validateFlightCreate = [
   body('aircraft.type')
     .notEmpty()
     .withMessage('Loại máy bay là bắt buộc')
-    .isIn(['Airbus A320', 'Airbus A321', 'Boeing 737', 'Boeing 787', 'ATR 72'])
-    .withMessage('Loại máy bay không hợp lệ'),
+    .isString()
+    .withMessage('Loại máy bay phải là chuỗi ký tự')
+    .isLength({ min: 3, max: 100 })
+    .withMessage('Loại máy bay phải từ 3 đến 100 ký tự'),
+
+  body('aircraft.registration')
+    .optional()
+    .isString()
+    .withMessage('Số đăng ký máy bay phải là chuỗi ký tự'),
   
   body('route.distance')
     .notEmpty()

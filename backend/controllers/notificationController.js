@@ -1,4 +1,4 @@
-const Notification = require('../models/Additional'); // Notification model trong Additional.js
+const { Notification } = require('../models/Additional'); // Notification model trong Additional.js
 const User = require('../models/User');
 const Booking = require('../models/Booking');
 const Flight = require('../models/Flight');
@@ -383,6 +383,62 @@ class NotificationController {
       unread: result.unread,
       typeBreakdown: typeStats
     }, 'Lấy thống kê thành công');
+
+    response.send(res);
+  });
+
+  // Admin: Get all notifications
+  static getAllNotifications = asyncHandler(async (req, res, next) => {
+    const {
+      page = 1,
+      limit = 20,
+      type,
+      priority,
+      status,
+      search
+    } = req.query;
+
+    // Build query
+    const query = {};
+    if (type) query.type = type;
+    if (priority) query.priority = priority;
+    if (status) {
+      if (status === 'read') {
+        query['channels.inApp.read'] = true;
+      } else if (status === 'unread') {
+        query['channels.inApp.read'] = false;
+      }
+    }
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: 'i' } },
+        { message: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    // Execute query with pagination
+    const skip = (page - 1) * limit;
+    const notifications = await Notification.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit))
+      .populate('user', 'personalInfo.firstName personalInfo.lastName contactInfo.email')
+      .populate('relatedData.booking', 'bookingReference')
+      .populate('relatedData.flight', 'flightNumber')
+      .lean();
+
+    // Get total count
+    const total = await Notification.countDocuments(query);
+
+    const response = ApiResponse.success({
+      notifications,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    }, 'Lấy danh sách thông báo thành công');
 
     response.send(res);
   });

@@ -493,6 +493,94 @@ class CheckinController {
 
     return Math.min(classPriority[seatClass] || 4, groupPriority[boardingGroup] || 4);
   }
+
+  // Admin: Get all check-ins
+  static getAllCheckins = asyncHandler(async (req, res, next) => {
+    const {
+      page = 1,
+      limit = 20,
+      flight,
+      status,
+      dateFrom,
+      dateTo
+    } = req.query;
+
+    // Build query - tìm bookings có check-in
+    const query = {};
+    
+    if (flight) {
+      query['flights.flight'] = flight;
+    }
+    
+    if (status) {
+      if (status === 'checked_in') {
+        query['flights.passengers.checkIn.isCheckedIn'] = true;
+      } else if (status === 'pending') {
+        query['flights.passengers.checkIn.isCheckedIn'] = false;
+      }
+    }
+
+    if (dateFrom || dateTo) {
+      query.createdAt = {};
+      if (dateFrom) query.createdAt.$gte = new Date(dateFrom);
+      if (dateTo) query.createdAt.$lte = new Date(dateTo);
+    }
+
+    // Execute query with pagination
+    const skip = (page - 1) * limit;
+    const bookings = await Booking.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit))
+      .populate({
+        path: 'flights.flight',
+        select: 'flightNumber route.departure.time route.departure.airport route.arrival.airport',
+        populate: {
+          path: 'route.departure.airport route.arrival.airport',
+          select: 'code.iata name.vi'
+        }
+      })
+      .populate('user', 'personalInfo.firstName personalInfo.lastName contactInfo.email')
+      .lean();
+
+    // Transform data để có danh sách check-in
+    const checkins = [];
+    bookings.forEach(booking => {
+      booking.flights.forEach(flightBooking => {
+        flightBooking.passengers.forEach(passenger => {
+          checkins.push({
+            _id: `${booking._id}_${flightBooking.flight._id}_${passenger._id}`,
+            bookingReference: booking.bookingReference,
+            flight: flightBooking.flight,
+            passenger: {
+              firstName: passenger.firstName,
+              lastName: passenger.lastName,
+              type: passenger.type
+            },
+            seat: passenger.ticket?.seatNumber || 'N/A',
+            checkIn: passenger.checkIn,
+            status: passenger.checkIn.isCheckedIn ? 'checked_in' : 'pending',
+            createdAt: booking.createdAt
+          });
+        });
+      });
+    });
+
+    // Get total count
+    const total = await Booking.countDocuments(query);
+
+    const response = ApiResponse.success({
+      checkins,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    }, 'Lấy danh sách check-in thành công');
+
+    response.send(res);
+  });
 }
 
 module.exports = CheckinController;

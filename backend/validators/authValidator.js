@@ -14,7 +14,7 @@ const validateRegister = [
     .withMessage('Tên là bắt buộc')
     .isLength({ min: 2, max: 50 })
     .withMessage('Tên phải từ 2-50 ký tự')
-    .matches(/^[a-zA-ZÀ-ỹ\s]+$/)
+    .matches(/^[a-zA-ZàáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđÀÁẠẢÃÂẦẤẬẨẪĂẰẮẶẲẴÈÉẸẺẼÊỀẾỆỂỄÌÍỊỈĨÒÓỌỎÕÔỒỐỘỔỖƠỜỚỢỞỠÙÚỤỦŨƯỪỨỰỬỮỲÝỴỶỸĐ\s]+$/u)
     .withMessage('Tên chỉ được chứa chữ cái và khoảng trắng'),
     
   body('lastName')
@@ -22,7 +22,7 @@ const validateRegister = [
     .withMessage('Họ là bắt buộc')
     .isLength({ min: 2, max: 50 })
     .withMessage('Họ phải từ 2-50 ký tự')
-    .matches(/^[a-zA-ZÀ-ỹ\s]+$/)
+    .matches(/^[a-zA-ZàáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđÀÁẠẢÃÂẦẤẬẨẪĂẰẮẶẲẴÈÉẸẺẼÊỀẾỆỂỄÌÍỊỈĨÒÓỌỎÕÔỒỐỘỔỖƠỜỚỢỞỠÙÚỤỦŨƯỪỨỰỬỮỲÝỴỶỸĐ\s]+$/u)
     .withMessage('Họ chỉ được chứa chữ cái và khoảng trắng'),
     
   body('dateOfBirth')

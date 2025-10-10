@@ -251,6 +251,13 @@ const userSchema = new mongoose.Schema({
     default: 'active'
   },
 
+  // Vai trò người dùng
+  role: {
+    type: String,
+    enum: ['user', 'admin', 'superadmin'],
+    default: 'user'
+  },
+
   // Metadata
   metadata: {
     registrationSource: {

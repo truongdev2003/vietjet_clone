@@ -42,7 +42,7 @@ class AirportController {
 
     const [airports, total] = await Promise.all([
       Airport.find(query)
-        .select('code name location type status')
+        .select('code name location type status operational infrastructure')
         .sort(sortOptions)
         .skip(skip)
         .limit(parseInt(limit)),
@@ -51,8 +51,7 @@ class AirportController {
 
     const totalPages = Math.ceil(total / limit);
 
-    res.status(200).json(
-      ApiResponse.success('Lấy danh sách sân bay thành công', {
+    const response = ApiResponse.success({
         airports,
         pagination: {
           currentPage: parseInt(page),
@@ -62,8 +61,8 @@ class AirportController {
           hasNextPage: page < totalPages,
           hasPrevPage: page > 1
         }
-      })
-    );
+      }, 'Lấy danh sách sân bay thành công');
+    response.send(res);
   });
 
   // Tìm kiếm sân bay
@@ -96,9 +95,8 @@ class AirportController {
         'name.en': 1 
       });
 
-    res.status(200).json(
-      ApiResponse.success('Tìm kiếm sân bay thành công', airports)
-    );
+    const response = ApiResponse.success(airports, 'Tìm kiếm sân bay thành công');
+    response.send(res);
   });
 
   // Lấy thông tin chi tiết sân bay
@@ -116,9 +114,8 @@ class AirportController {
       return next(new AppError('Không tìm thấy sân bay', 404));
     }
 
-    res.status(200).json(
-      ApiResponse.success('Lấy thông tin sân bay thành công', airport)
-    );
+    const response = ApiResponse.success(airport, 'Lấy thông tin sân bay thành công');
+    response.send(res);
   });
 
   // Lấy danh sách sân bay phổ biến
@@ -139,9 +136,8 @@ class AirportController {
       .sort({ [sortField]: -1 })
       .limit(parseInt(limit));
 
-    res.status(200).json(
-      ApiResponse.success('Lấy danh sách sân bay phổ biến thành công', airports)
-    );
+    const response = ApiResponse.success(airports, 'Lấy danh sách sân bay phổ biến thành công');
+    response.send(res);
   });
 
   // Lấy danh sách sân bay theo quốc gia
@@ -163,9 +159,8 @@ class AirportController {
       .sort({ 'name.en': 1 })
       .limit(parseInt(limit));
 
-    res.status(200).json(
-      ApiResponse.success(`Lấy danh sách sân bay ${countryCode.toUpperCase()} thành công`, airports)
-    );
+    const response = ApiResponse.success(airports, `Lấy danh sách sân bay ${countryCode.toUpperCase()} thành công`);
+    response.send(res);
   });
 
   // Lấy danh sách sân bay gần nhất
@@ -191,9 +186,8 @@ class AirportController {
       .select('code name location')
       .limit(parseInt(limit));
 
-    res.status(200).json(
-      ApiResponse.success('Lấy danh sách sân bay gần nhất thành công', airports)
-    );
+    const response = ApiResponse.success(airports, 'Lấy danh sách sân bay gần nhất thành công');
+    response.send(res);
   });
 
   // Tạo sân bay mới (admin)
@@ -232,9 +226,8 @@ class AirportController {
 
     const airport = await Airport.create(airportData);
 
-    res.status(201).json(
-      ApiResponse.success('Tạo sân bay thành công', airport)
-    );
+    const response = ApiResponse.created(airport, 'Tạo sân bay thành công');
+    response.send(res);
   });
 
   // Cập nhật thông tin sân bay (admin)
@@ -260,9 +253,8 @@ class AirportController {
       return next(new AppError('Không tìm thấy sân bay', 404));
     }
 
-    res.status(200).json(
-      ApiResponse.success('Cập nhật sân bay thành công', airport)
-    );
+    const response = ApiResponse.success(airport, 'Cập nhật sân bay thành công');
+    response.send(res);
   });
 
   // Xóa sân bay (admin)
@@ -289,9 +281,8 @@ class AirportController {
 
     await Airport.findByIdAndDelete(airportId);
 
-    res.status(200).json(
-      ApiResponse.success('Xóa sân bay thành công')
-    );
+    const response = ApiResponse.success(null, 'Xóa sân bay thành công');
+    response.send(res);
   });
 
   // Lấy thống kê sân bay (admin)
@@ -379,9 +370,8 @@ class AirportController {
       }
     };
 
-    res.status(200).json(
-      ApiResponse.success('Lấy thống kê sân bay thành công', stats)
-    );
+    const response = ApiResponse.success(stats, 'Lấy thống kê sân bay thành công');
+    response.send(res);
   });
 }
 

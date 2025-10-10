@@ -1,0 +1,783 @@
+{
+  "info": {
+    "name": "VietJet Clone API - Public & Services",
+    "description": "Collection of public API endpoints and services for VietJet Clone application",
+    "version": "1.0.0",
+    "_postman_id": "vietjet-clone-public-api",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "apiPrefix",
+      "value": "/api/v1",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Airports",
+      "item": [
+        {
+          "name": "Get All Airports",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/airports",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "airports"]
+            },
+            "description": "Get list of all airports"
+          },
+          "response": []
+        },
+        {
+          "name": "Search Airports",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/airports/search?q=Ho Chi Minh",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "airports", "search"],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "Ho Chi Minh",
+                  "description": "Search query"
+                }
+              ]
+            },
+            "description": "Search airports by name, city, or code"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Popular Airports",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/airports/popular",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "airports", "popular"]
+            },
+            "description": "Get list of popular airports"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Airports by Country",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/airports/country/VN",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "airports", "country", "VN"]
+            },
+            "description": "Get airports by country code"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Nearby Airports",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/airports/nearby?lat=10.8231&lng=106.6297&radius=100",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "airports", "nearby"],
+              "query": [
+                {
+                  "key": "lat",
+                  "value": "10.8231",
+                  "description": "Latitude"
+                },
+                {
+                  "key": "lng",
+                  "value": "106.6297",
+                  "description": "Longitude"
+                },
+                {
+                  "key": "radius",
+                  "value": "100",
+                  "description": "Search radius in km"
+                }
+              ]
+            },
+            "description": "Get nearby airports by coordinates"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Airport Details",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/airports/SGN",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "airports", "SGN"]
+            },
+            "description": "Get detailed information about a specific airport"
+          },
+          "response": []
+        }
+      ],
+      "description": "Airport information and search endpoints"
+    },
+    {
+      "name": "Fares",
+      "item": [
+        {
+          "name": "Get Fares by Route",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/fares/route/ROUTE_ID",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "fares", "route", "ROUTE_ID"]
+            },
+            "description": "Get all fares for a specific route"
+          },
+          "response": []
+        },
+        {
+          "name": "Calculate Fare",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"origin\": \"HAN\",\n  \"destination\": \"SGN\",\n  \"departureDate\": \"2024-12-15\",\n  \"returnDate\": \"2024-12-20\",\n  \"passengers\": {\n    \"adults\": 1,\n    \"children\": 0,\n    \"infants\": 0\n  },\n  \"class\": \"economy\",\n  \"isRoundTrip\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/fares/calculate",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "fares", "calculate"]
+            },
+            "description": "Calculate fare for specific route and conditions"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Fare Details",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/fares/FARE_ID",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "fares", "FARE_ID"]
+            },
+            "description": "Get detailed information about a specific fare"
+          },
+          "response": []
+        }
+      ],
+      "description": "Fare calculation and information endpoints"
+    },
+    {
+      "name": "Seats",
+      "item": [
+        {
+          "name": "Get Flight Seat Map",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/seats/flight/FLIGHT_ID/map",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "seats", "flight", "FLIGHT_ID", "map"]
+            },
+            "description": "Get seat map for a specific flight"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Recommended Seats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/seats/flight/FLIGHT_ID/recommended",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "seats", "flight", "FLIGHT_ID", "recommended"]
+            },
+            "description": "Get recommended seats based on user preferences"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Booking Seats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/seats/booking/BOOKING_ID",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "seats", "booking", "BOOKING_ID"]
+            },
+            "description": "Get selected seats for a booking"
+          },
+          "response": []
+        },
+        {
+          "name": "Select Seat",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"seatNumber\": \"12A\",\n  \"passengerId\": \"PASSENGER_ID\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/seats/booking/BOOKING_ID/select",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "seats", "booking", "BOOKING_ID", "select"]
+            },
+            "description": "Select a seat for passenger"
+          },
+          "response": []
+        },
+        {
+          "name": "Unselect Seat",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"seatNumber\": \"12A\",\n  \"passengerId\": \"PASSENGER_ID\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/seats/booking/BOOKING_ID/unselect",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "seats", "booking", "BOOKING_ID", "unselect"]
+            },
+            "description": "Unselect a seat for passenger"
+          },
+          "response": []
+        }
+      ],
+      "description": "Seat selection and management endpoints"
+    },
+    {
+      "name": "Check-in",
+      "item": [
+        {
+          "name": "Check Eligibility",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bookingReference\": \"VJ123456\",\n  \"lastName\": \"Doe\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/checkin/eligibility",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "checkin", "eligibility"]
+            },
+            "description": "Check if booking is eligible for online check-in"
+          },
+          "response": []
+        },
+        {
+          "name": "Perform Check-in",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bookingReference\": \"VJ123456\",\n  \"lastName\": \"Doe\",\n  \"passengers\": [\n    {\n      \"passengerId\": \"PASSENGER_ID\",\n      \"seatNumber\": \"12A\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/checkin/perform",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "checkin", "perform"]
+            },
+            "description": "Perform online check-in"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Check-in Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/checkin/status/VJ123456",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "checkin", "status", "VJ123456"]
+            },
+            "description": "Get check-in status for a booking"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Boarding Pass",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/checkin/boarding-pass/VJ123456/PASSENGER_ID",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "checkin", "boarding-pass", "VJ123456", "PASSENGER_ID"]
+            },
+            "description": "Get boarding pass for a passenger"
+          },
+          "response": []
+        },
+        {
+          "name": "Generate Mobile Boarding Pass",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/checkin/mobile-boarding-pass/VJ123456/PASSENGER_ID",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "checkin", "mobile-boarding-pass", "VJ123456", "PASSENGER_ID"]
+            },
+            "description": "Generate mobile boarding pass"
+          },
+          "response": []
+        }
+      ],
+      "description": "Check-in and boarding pass endpoints"
+    },
+    {
+      "name": "Payments",
+      "item": [
+        {
+          "name": "Create Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bookingId\": \"BOOKING_ID\",\n  \"amount\": 2500000,\n  \"paymentMethod\": \"credit_card\",\n  \"cardDetails\": {\n    \"cardNumber\": \"4111111111111111\",\n    \"expiryMonth\": \"12\",\n    \"expiryYear\": \"2025\",\n    \"cvv\": \"123\",\n    \"cardHolder\": \"John Doe\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/payments",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "payments"]
+            },
+            "description": "Create a new payment"
+          },
+          "response": []
+        },
+        {
+          "name": "Get My Payments",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/payments/my-payments",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "payments", "my-payments"]
+            },
+            "description": "Get all payments for current user"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Payment Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/payments/PAYMENT_ID",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "payments", "PAYMENT_ID"]
+            },
+            "description": "Get details of a specific payment"
+          },
+          "response": []
+        },
+        {
+          "name": "Payment Callback",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transactionId\": \"TXN123456\",\n  \"status\": \"success\",\n  \"amount\": 2500000,\n  \"bookingId\": \"BOOKING_ID\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/payments/callback/vnpay",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "payments", "callback", "vnpay"]
+            },
+            "description": "Handle payment gateway callback"
+          },
+          "response": []
+        }
+      ],
+      "description": "Payment processing endpoints"
+    },
+    {
+      "name": "Payment Gateway",
+      "item": [
+        {
+          "name": "Create VNPay Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bookingId\": \"BOOKING_ID\",\n  \"amount\": 2500000,\n  \"gateway\": \"vnpay\",\n  \"orderInfo\": \"VietJet Air - Thanh toán vé máy bay\",\n  \"ipAddr\": \"127.0.0.1\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/payment-gateway/create",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "payment-gateway", "create"]
+            },
+            "description": "Create VNPay payment URL"
+          },
+          "response": []
+        },
+        {
+          "name": "Create ZaloPay Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bookingId\": \"BOOKING_ID\",\n  \"amount\": 2500000,\n  \"gateway\": \"zalopay\",\n  \"orderInfo\": \"VietJet Air - Thanh toán vé máy bay\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/payment-gateway/create",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "payment-gateway", "create"]
+            },
+            "description": "Create ZaloPay payment URL"
+          },
+          "response": []
+        },
+        {
+          "name": "Create MoMo Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bookingId\": \"BOOKING_ID\",\n  \"amount\": 2500000,\n  \"gateway\": \"momo\",\n  \"orderInfo\": \"VietJet Air - Thanh toán vé máy bay\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/payment-gateway/create",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "payment-gateway", "create"]
+            },
+            "description": "Create MoMo payment URL"
+          },
+          "response": []
+        },
+        {
+          "name": "VNPay Callback",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/payment-gateway/vnpay/callback?vnp_Amount=250000000&vnp_BankCode=NCB&vnp_ResponseCode=00",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "payment-gateway", "vnpay", "callback"],
+              "query": [
+                {
+                  "key": "vnp_Amount",
+                  "value": "250000000"
+                },
+                {
+                  "key": "vnp_BankCode",
+                  "value": "NCB"
+                },
+                {
+                  "key": "vnp_ResponseCode",
+                  "value": "00"
+                }
+              ]
+            },
+            "description": "VNPay payment callback endpoint"
+          },
+          "response": []
+        },
+        {
+          "name": "ZaloPay Callback",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"data\": \"callback_data\",\n  \"mac\": \"callback_mac\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/payment-gateway/zalopay/callback",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "payment-gateway", "zalopay", "callback"]
+            },
+            "description": "ZaloPay payment callback endpoint"
+          },
+          "response": []
+        },
+        {
+          "name": "Check Payment Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/payment-gateway/status/PAYMENT_ID",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "payment-gateway", "status", "PAYMENT_ID"]
+            },
+            "description": "Check payment status"
+          },
+          "response": []
+        },
+        {
+          "name": "Process Refund",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"paymentId\": \"PAYMENT_ID\",\n  \"refundAmount\": 1000000,\n  \"reason\": \"Customer request\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/payment-gateway/refund",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "payment-gateway", "refund"]
+            },
+            "description": "Process payment refund"
+          },
+          "response": []
+        }
+      ],
+      "description": "Payment gateway integration endpoints"
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "Get My Notifications",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/notifications",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "notifications"]
+            },
+            "description": "Get all notifications for current user"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Notification Stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/notifications/stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "notifications", "stats"]
+            },
+            "description": "Get notification statistics"
+          },
+          "response": []
+        },
+        {
+          "name": "Mark as Read",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/notifications/NOTIFICATION_ID/read",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "notifications", "NOTIFICATION_ID", "read"]
+            },
+            "description": "Mark a notification as read"
+          },
+          "response": []
+        },
+        {
+          "name": "Mark All as Read",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/notifications/mark-all-read",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "notifications", "mark-all-read"]
+            },
+            "description": "Mark all notifications as read"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Notification",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/notifications/NOTIFICATION_ID",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "notifications", "NOTIFICATION_ID"]
+            },
+            "description": "Delete a notification"
+          },
+          "response": []
+        }
+      ],
+      "description": "User notification management endpoints"
+    }
+  ]
+}

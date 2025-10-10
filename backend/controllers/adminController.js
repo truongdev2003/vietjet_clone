@@ -2,7 +2,7 @@ const User = require('../models/User');
 const Booking = require('../models/Booking');
 const Flight = require('../models/Flight');
 const Payment = require('../models/Payment');
-const Notification = require('../models/Additional');
+const { Notification } = require('../models/Additional');
 const NotificationController = require('./notificationController');
 const { asyncHandler, AppError } = require('../utils/errorHandler');
 const ApiResponse = require('../utils/apiResponse');
@@ -33,12 +33,20 @@ class AdminController {
         startDate.setDate(startDate.getDate() - 30);
     }
 
+    // Tính toán "hôm nay" (từ 00:00:00 đến 23:59:59)
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+
     // Thống kê tổng quan
     const [
       totalUsers,
       newUsersCount,
+      newUsersToday,
       totalBookings,
       newBookingsCount,
+      newBookingsToday,
       totalRevenue,
       newRevenue,
       totalFlights,
@@ -49,22 +57,29 @@ class AdminController {
         status: 'active',
         createdAt: { $gte: startDate, $lte: endDate }
       }),
+      User.countDocuments({ 
+        status: 'active',
+        createdAt: { $gte: todayStart, $lte: todayEnd }
+      }),
       Booking.countDocuments(),
       Booking.countDocuments({
         createdAt: { $gte: startDate, $lte: endDate }
       }),
+      Booking.countDocuments({
+        createdAt: { $gte: todayStart, $lte: todayEnd }
+      }),
       Payment.aggregate([
-        { $match: { status: 'completed' } },
-        { $group: { _id: null, total: { $sum: '$amount' } } }
+        { $match: { 'status.overall': 'completed' } },
+        { $group: { _id: null, total: { $sum: '$amount.total' } } }
       ]).then(result => result[0]?.total || 0),
       Payment.aggregate([
         { 
           $match: { 
-            status: 'completed',
-            completedAt: { $gte: startDate, $lte: endDate }
+            'status.overall': 'completed',
+            updatedAt: { $gte: startDate, $lte: endDate }
           }
         },
-        { $group: { _id: null, total: { $sum: '$amount' } } }
+        { $group: { _id: null, total: { $sum: '$amount.total' } } }
       ]).then(result => result[0]?.total || 0),
       Flight.countDocuments(),
       Flight.countDocuments({
@@ -153,11 +168,13 @@ class AdminController {
         users: {
           total: totalUsers,
           new: newUsersCount,
+          today: newUsersToday,
           growth: totalUsers > 0 ? ((newUsersCount / totalUsers) * 100).toFixed(1) : 0
         },
         bookings: {
           total: totalBookings,
           new: newBookingsCount,
+          today: newBookingsToday,
           growth: totalBookings > 0 ? ((newBookingsCount / totalBookings) * 100).toFixed(1) : 0
         },
         revenue: {
@@ -354,6 +371,60 @@ class AdminController {
     response.send(res);
   });
 
+  // Update user role
+  static updateUserRole = asyncHandler(async (req, res, next) => {
+    const { userId } = req.params;
+    const { role } = req.body;
+
+    const validRoles = ['user', 'admin', 'superadmin'];
+    if (!validRoles.includes(role)) {
+      return next(new AppError('Vai trò không hợp lệ', 400));
+    }
+
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { 
+        role,
+        'metadata.lastUpdated': new Date()
+      },
+      { new: true }
+    ).select('-account.password');
+
+    if (!user) {
+      return next(new AppError('Không tìm thấy người dùng', 404));
+    }
+
+    const response = ApiResponse.success(user, 'Cập nhật vai trò thành công');
+    response.send(res);
+  });
+
+  // Delete user (soft delete)
+  static deleteUser = asyncHandler(async (req, res, next) => {
+    const { userId } = req.params;
+
+    // Không cho phép xóa chính mình
+    if (userId === req.user.id) {
+      return next(new AppError('Không thể xóa tài khoản của chính bạn', 400));
+    }
+
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { 
+        status: 'deleted',
+        'metadata.deletedAt': new Date(),
+        'metadata.lastUpdated': new Date()
+      },
+      { new: true }
+    ).select('-account.password');
+
+    if (!user) {
+      return next(new AppError('Không tìm thấy người dùng', 404));
+    }
+
+    const response = ApiResponse.success(user, 'Xóa người dùng thành công');
+    response.send(res);
+  });
+
   // Quản lý booking
   static getBookings = asyncHandler(async (req, res, next) => {
     const {
@@ -401,7 +472,20 @@ class AdminController {
     const [bookings, total] = await Promise.all([
       Booking.find(query)
         .populate('user', 'personalInfo.firstName personalInfo.lastName contactInfo.email')
-        .populate('flights.flight', 'flightNumber route.departure.airport route.arrival.airport route.departure.time')
+        .populate({
+          path: 'flights.flight',
+          select: 'flightNumber route status',
+          populate: [
+            {
+              path: 'route.departure.airport',
+              select: 'code.iata name.vi'
+            },
+            {
+              path: 'route.arrival.airport',
+              select: 'code.iata name.vi'
+            }
+          ]
+        })
         .sort(sortOptions)
         .skip(skip)
         .limit(parseInt(limit))

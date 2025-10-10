@@ -3,6 +3,7 @@ const axios = require('axios');
 const Payment = require('../models/Payment');
 const Booking = require('../models/Booking');
 const { AppError } = require('../utils/errorHandler');
+const config = require('../config/config');
 
 class PaymentGatewayService {
   constructor() {
@@ -22,12 +23,12 @@ class PaymentGatewayService {
         callbackUrl: process.env.ZALOPAY_CALLBACK_URL
       },
       momo: {
-        baseUrl: process.env.MOMO_BASE_URL || 'https://test-payment.momo.vn/v2/gateway/api/create',
-        partnerCode: process.env.MOMO_PARTNER_CODE,
-        accessKey: process.env.MOMO_ACCESS_KEY,
-        secretKey: process.env.MOMO_SECRET_KEY,
-        redirectUrl: process.env.MOMO_REDIRECT_URL,
-        ipnUrl: process.env.MOMO_IPN_URL
+        endpoint: config.MOMO_ENDPOINT,
+        partnerCode: config.MOMO_PARTNER_CODE,
+        accessKey: config.MOMO_ACCESS_KEY,
+        secretKey: config.MOMO_SECRET_KEY,
+        returnUrl: config.MOMO_RETURN_URL,
+        notifyUrl: config.MOMO_NOTIFY_URL
       }
     };
   }
@@ -321,66 +322,190 @@ class PaymentGatewayService {
         throw new AppError('Booking not found', 404);
       }
 
-      const orderId = this.generateTxnRef();
+      // Generate unique IDs
+      const orderId = `VJ_${bookingId}_${Date.now()}`;
       const requestId = orderId;
+      
+      const momoConfig = this.gateways.momo;
 
-      const rawSignature = `accessKey=${this.gateways.momo.accessKey}&amount=${amount}&extraData=&ipnUrl=${this.gateways.momo.ipnUrl}&orderId=${orderId}&orderInfo=${orderInfo}&partnerCode=${this.gateways.momo.partnerCode}&redirectUrl=${this.gateways.momo.redirectUrl}&requestId=${requestId}&requestType=captureWallet`;
+      // Build raw signature string theo MoMo spec
+      const rawSignature = `accessKey=${momoConfig.accessKey}&amount=${amount}&extraData=&ipnUrl=${momoConfig.notifyUrl}&orderId=${orderId}&orderInfo=${orderInfo}&partnerCode=${momoConfig.partnerCode}&redirectUrl=${momoConfig.returnUrl}&requestId=${requestId}&requestType=payWithMethod`;
 
       const signature = crypto
-        .createHmac('sha256', this.gateways.momo.secretKey)
+        .createHmac('sha256', momoConfig.secretKey)
         .update(rawSignature)
         .digest('hex');
 
       const requestBody = {
-        partnerCode: this.gateways.momo.partnerCode,
-        accessKey: this.gateways.momo.accessKey,
+        partnerCode: momoConfig.partnerCode,
+        partnerName: 'Vietjet Air',
+        storeId: 'VietjetStore',
         requestId: requestId,
         amount: amount,
         orderId: orderId,
         orderInfo: orderInfo,
-        redirectUrl: this.gateways.momo.redirectUrl,
-        ipnUrl: this.gateways.momo.ipnUrl,
-        requestType: 'captureWallet',
-        extraData: '',
+        redirectUrl: momoConfig.returnUrl,
+        ipnUrl: momoConfig.notifyUrl,
         lang: 'vi',
+        requestType: 'payWithMethod',
+        autoCapture: true,
+        extraData: '',
         signature: signature
       };
 
-      // Tạo payment record
+      console.log('🔐 MoMo Request:', {
+        orderId,
+        amount,
+        endpoint: momoConfig.endpoint
+      });
+
+      // Tạo payment record theo đúng Payment schema
       const payment = await Payment.create({
         booking: bookingId,
-        amount: amount,
-        currency: 'VND',
-        gateway: {
-          provider: 'momo',
-          transactionId: orderId
+        paymentReference: orderId, // Required field
+        amount: {
+          total: amount,           // Required nested field
+          currency: 'VND'
         },
         method: {
-          type: 'e_wallet',
+          type: 'e_wallet',        // Required nested field
           eWallet: {
             provider: 'momo',
             transactionId: orderId
           }
         },
+        gateway: {
+          provider: 'momo',
+          transactionId: orderId
+        },
         status: 'pending',
         expiresAt: new Date(Date.now() + 15 * 60 * 1000)
       });
 
-      const response = await axios.post(this.gateways.momo.baseUrl, requestBody);
+      // Gọi MoMo API
+      const response = await axios.post(momoConfig.endpoint, requestBody, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      console.log('💰 MoMo Response:', response.data);
 
       if (response.data.resultCode === 0) {
+        // MoMo trả về payUrl để redirect
         return {
           paymentId: payment._id,
           paymentUrl: response.data.payUrl,
-          transactionId: orderId,
+          orderId: orderId,
           expiresAt: payment.expiresAt
         };
       } else {
-        throw new AppError('MoMo payment creation failed', 500);
+        // MoMo trả về lỗi
+        await Payment.findByIdAndUpdate(payment._id, {
+          status: 'failed',
+          failureReason: response.data.message || 'MoMo payment creation failed'
+        });
+        
+        throw new AppError(`MoMo error: ${response.data.message}`, 500);
       }
     } catch (error) {
-      console.error('MoMo payment creation error:', error);
-      throw new AppError('Lỗi tạo thanh toán MoMo', 500);
+      console.error('❌ MoMo payment creation error:', error.response?.data || error.message);
+      throw new AppError(error.message || 'Lỗi tạo thanh toán MoMo', 500);
+    }
+  }
+
+  // Xử lý callback từ MoMo
+  async handleMoMoCallback(data) {
+    try {
+      const {
+        partnerCode,
+        orderId,
+        requestId,
+        amount,
+        orderInfo,
+        orderType,
+        transId,
+        resultCode,
+        message,
+        payType,
+        responseTime,
+        extraData,
+        signature
+      } = data;
+
+      console.log('🔔 MoMo callback received:', { orderId, resultCode, message });
+
+      const momoConfig = this.gateways.momo;
+
+      // Verify signature theo MoMo spec
+      const rawSignature = `accessKey=${momoConfig.accessKey}&amount=${amount}&extraData=${extraData}&message=${message}&orderId=${orderId}&orderInfo=${orderInfo}&orderType=${orderType}&partnerCode=${partnerCode}&payType=${payType}&requestId=${requestId}&responseTime=${responseTime}&resultCode=${resultCode}&transId=${transId}`;
+      
+      const expectedSignature = crypto
+        .createHmac('sha256', momoConfig.secretKey)
+        .update(rawSignature)
+        .digest('hex');
+
+      if (signature !== expectedSignature) {
+        console.error('❌ Invalid signature:', { expected: expectedSignature, received: signature });
+        throw new AppError('Invalid signature', 400);
+      }
+
+      console.log('✅ Signature verified successfully');
+
+      // Tìm payment theo paymentReference (orderId)
+      const payment = await Payment.findOne({ paymentReference: orderId }).populate('booking');
+
+      if (!payment) {
+        console.error('❌ Payment not found:', orderId);
+        throw new AppError('Payment not found', 404);
+      }
+
+      const isSuccess = resultCode === 0;
+
+      // Cập nhật payment theo Payment schema
+      await Payment.findByIdAndUpdate(payment._id, {
+        status: isSuccess ? 'completed' : 'failed',
+        'gateway.responseCode': resultCode?.toString(),
+        'gateway.responseMessage': message,
+        'method.eWallet.transactionId': transId?.toString() || orderId,
+        completedAt: isSuccess ? new Date() : undefined,
+        failedAt: isSuccess ? undefined : new Date(),
+        failureReason: isSuccess ? undefined : message
+      });
+
+      console.log(`💳 Payment ${isSuccess ? 'completed' : 'failed'}:`, payment._id);
+
+      // Cập nhật booking
+      if (isSuccess) {
+        await Booking.findByIdAndUpdate(payment.booking._id, {
+          status: 'confirmed',
+          'payment.status': 'paid',
+          'payment.paidAt': new Date()
+        });
+
+        console.log('✈️ Booking confirmed:', payment.booking._id);
+
+        // TODO: Gửi email xác nhận thanh toán
+        // TODO: Cập nhật inventory từ 'held' sang 'sold'
+      } else {
+        // Thanh toán thất bại, giải phóng ghế
+        await Booking.findByIdAndUpdate(payment.booking._id, {
+          'payment.status': 'failed',
+          status: 'cancelled'
+        });
+
+        // TODO: Release inventory
+      }
+
+      return {
+        success: isSuccess,
+        transactionId: transId || orderId,
+        amount: amount,
+        message: message
+      };
+    } catch (error) {
+      console.error('MoMo callback error:', error);
+      throw error;
     }
   }
 

@@ -125,8 +125,7 @@ class PaymentController {
       return next(new AppError('Lỗi khi tạo thanh toán: ' + error.message, 500));
     }
 
-    res.status(201).json(
-      ApiResponse.success('Tạo thanh toán thành công', {
+    const response = ApiResponse.created({
         payment: {
           id: payment._id,
           reference: payment.reference,
@@ -136,8 +135,8 @@ class PaymentController {
           paymentUrl: paymentUrl
         },
         redirectUrl: paymentUrl
-      })
-    );
+      }, 'Tạo thanh toán thành công');
+    response.send(res);
   });
 
   // Xử lý callback từ payment gateway
@@ -222,12 +221,11 @@ class PaymentController {
 
         // TODO: Send confirmation email/SMS to customer
 
-        res.status(200).json(
-          ApiResponse.success('Thanh toán thành công', {
+        const response = ApiResponse.success({
             payment,
             booking: booking
-          })
-        );
+          }, 'Thanh toán thành công');
+        response.send(res);
 
       } else {
         // Update payment status as failed
@@ -241,16 +239,14 @@ class PaymentController {
 
         await payment.save();
 
-        res.status(400).json(
-          ApiResponse.error('Thanh toán thất bại', errorMessage)
-        );
+        const response = ApiResponse.error(errorMessage, 'Thanh toán thất bại', 400);
+        response.send(res);
       }
 
     } catch (error) {
       console.error('Payment callback error:', error);
-      res.status(500).json(
-        ApiResponse.error('Lỗi xử lý callback thanh toán', error.message)
-      );
+      const response = ApiResponse.error(error.message, 'Lỗi xử lý callback thanh toán', 500);
+      response.send(res);
     }
   });
 
@@ -271,9 +267,8 @@ class PaymentController {
       return next(new AppError('Bạn không có quyền xem thanh toán này', 403));
     }
 
-    res.status(200).json(
-      ApiResponse.success('Lấy thông tin thanh toán thành công', payment)
-    );
+    const response = ApiResponse.success(payment, 'Lấy thông tin thanh toán thành công');
+    response.send(res);
   });
 
   // Lấy danh sách payments (user)
@@ -310,8 +305,7 @@ class PaymentController {
 
     const totalPages = Math.ceil(total / limit);
 
-    res.status(200).json(
-      ApiResponse.success('Lấy danh sách thanh toán thành công', {
+    const response = ApiResponse.success({
         payments,
         pagination: {
           currentPage: parseInt(page),
@@ -321,8 +315,8 @@ class PaymentController {
           hasNextPage: page < totalPages,
           hasPrevPage: page > 1
         }
-      })
-    );
+      }, 'Lấy danh sách thanh toán thành công');
+    response.send(res);
   });
 
   // Hoàn tiền (admin)
@@ -369,9 +363,8 @@ class PaymentController {
 
     await payment.save();
 
-    res.status(200).json(
-      ApiResponse.success('Hoàn tiền thành công', payment)
-    );
+    const response = ApiResponse.success(payment, 'Hoàn tiền thành công');
+    response.send(res);
   });
 
   // Helper methods
@@ -465,6 +458,67 @@ class PaymentController {
       message: 'Refund processed successfully'
     };
   }
+
+  // Admin: Get all payments
+  static getAllPayments = asyncHandler(async (req, res, next) => {
+    const {
+      page = 1,
+      limit = 20,
+      status,
+      method,
+      search,
+      dateFrom,
+      dateTo
+    } = req.query;
+
+    // Build query
+    const query = {};
+    
+    // Filter by status (nested in status.overall)
+    if (status) query['status.overall'] = status;
+    
+    // Filter by payment method (paymentMethods array)
+    if (method) query['paymentMethods.type'] = method;
+    
+    // Search by paymentReference or booking reference
+    if (search) {
+      query.$or = [
+        { paymentReference: { $regex: search, $options: 'i' } }
+      ];
+    }
+    
+    // Filter by date range
+    if (dateFrom || dateTo) {
+      query.createdAt = {};
+      if (dateFrom) query.createdAt.$gte = new Date(dateFrom);
+      if (dateTo) query.createdAt.$lte = new Date(dateTo);
+    }
+
+    // Execute query with pagination
+    const skip = (page - 1) * limit;
+    const payments = await Payment.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit))
+      .populate('booking', 'bookingReference')
+      .populate('user', 'personalInfo.firstName personalInfo.lastName contactInfo.email')
+      .lean();
+
+    // Get total count
+    const total = await Payment.countDocuments(query);
+
+    const response = ApiResponse.success({
+      payments,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    }, 'Lấy danh sách thanh toán thành công');
+
+    response.send(res);
+  });
 }
 
 module.exports = PaymentController;

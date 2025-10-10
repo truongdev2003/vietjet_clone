@@ -217,9 +217,9 @@ const validateFareUpdate = [
     .isISO8601()
     .withMessage('Ngày kết thúc hiệu lực không hợp lệ'),
   
-  body('status')
+  body('status.current')
     .optional()
-    .isIn(['active', 'inactive', 'expired'])
+    .isIn(['active', 'inactive', 'expired', 'pending'])
     .withMessage('Trạng thái không hợp lệ'),
   
   handleValidationErrors

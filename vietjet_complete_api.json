@@ -1,0 +1,1109 @@
+{
+  "info": {
+    "name": "VietJet Clone API - Complete Collection",
+    "description": "Complete API collection for VietJet Clone application with all endpoints",
+    "version": "1.0.0",
+    "_postman_id": "vietjet-clone-complete-api",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "apiPrefix",
+      "value": "/api/v1",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refreshToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "adminToken",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Auto-set appropriate token based on request path",
+          "const requestUrl = pm.request.url.toString();",
+          "if (requestUrl.includes('/admin/')) {",
+          "    pm.request.headers.upsert({",
+          "        key: 'Authorization',",
+          "        value: 'Bearer ' + pm.collectionVariables.get('adminToken')",
+          "    });",
+          "} else if (requestUrl.includes('/auth/') && !requestUrl.includes('/auth/login') && !requestUrl.includes('/auth/register')) {",
+          "    pm.request.headers.upsert({",
+          "        key: 'Authorization',",
+          "        value: 'Bearer ' + pm.collectionVariables.get('accessToken')",
+          "    });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "🔧 System",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            },
+            "description": "Check server health status"
+          },
+          "response": []
+        },
+        {
+          "name": "Get CSRF Token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/csrf-token",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "csrf-token"]
+            },
+            "description": "Get CSRF token for protected requests"
+          },
+          "response": []
+        },
+        {
+          "name": "API Info",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/",
+              "host": ["{{baseUrl}}"],
+              "path": [""]
+            },
+            "description": "Get API information and available endpoints"
+          },
+          "response": []
+        }
+      ],
+      "description": "System and utility endpoints"
+    },
+    {
+      "name": "🔐 Authentication",
+      "item": [
+        {
+          "name": "User Registration",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Mr\",\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"dateOfBirth\": \"1990-01-15\",\n  \"gender\": \"male\",\n  \"nationality\": \"Vietnam\",\n  \"email\": \"john.doe@example.com\",\n  \"phone\": \"0901234567\",\n  \"password\": \"StrongPassword123!\",\n  \"confirmPassword\": \"StrongPassword123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "auth", "register"]
+            },
+            "description": "Register a new user account"
+          },
+          "response": []
+        },
+        {
+          "name": "User Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.data && response.data.tokens) {",
+                  "        pm.collectionVariables.set('accessToken', response.data.tokens.accessToken);",
+                  "        pm.collectionVariables.set('refreshToken', response.data.tokens.refreshToken);",
+                  "        console.log('User tokens saved successfully');",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"john.doe@example.com\",\n  \"password\": \"StrongPassword123!\",\n  \"rememberMe\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "auth", "login"]
+            },
+            "description": "Login user and get access token"
+          },
+          "response": []
+        },
+        {
+          "name": "Admin Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.data && response.data.tokens) {",
+                  "        pm.collectionVariables.set('adminToken', response.data.tokens.accessToken);",
+                  "        console.log('Admin token saved successfully');",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@vietjet.com\",\n  \"password\": \"AdminPassword123!\",\n  \"rememberMe\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "auth", "login"]
+            },
+            "description": "Login as admin user"
+          },
+          "response": []
+        },
+        {
+          "name": "Refresh Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.data && response.data.tokens) {",
+                  "        pm.collectionVariables.set('accessToken', response.data.tokens.accessToken);",
+                  "        pm.collectionVariables.set('refreshToken', response.data.tokens.refreshToken);",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/auth/refresh-token",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "auth", "refresh-token"]
+            },
+            "description": "Refresh access token using refresh token"
+          },
+          "response": []
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/auth/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "auth", "logout"]
+            },
+            "description": "Logout current user"
+          },
+          "response": []
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"john.doe@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/auth/forgot-password",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "auth", "forgot-password"]
+            },
+            "description": "Request password reset email"
+          },
+          "response": []
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"RESET_TOKEN_HERE\",\n  \"password\": \"NewStrongPassword123!\",\n  \"confirmPassword\": \"NewStrongPassword123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/auth/reset-password",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "auth", "reset-password"]
+            },
+            "description": "Reset password using token from email"
+          },
+          "response": []
+        }
+      ],
+      "description": "Authentication and authorization endpoints"
+    },
+    {
+      "name": "👤 User Profile",
+      "item": [
+        {
+          "name": "Get Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/auth/profile",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "auth", "profile"]
+            },
+            "description": "Get current user profile information"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"personalInfo.firstName\": \"John Updated\",\n  \"personalInfo.lastName\": \"Doe Updated\",\n  \"preferences.language\": \"vi\",\n  \"preferences.currency\": \"VND\",\n  \"preferences.seatPreference\": \"window\",\n  \"preferences.mealPreference\": \"normal\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/auth/profile",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "auth", "profile"]
+            },
+            "description": "Update user profile information"
+          },
+          "response": []
+        },
+        {
+          "name": "Upload Avatar",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "avatar",
+                  "type": "file",
+                  "src": [],
+                  "description": "Avatar image file"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/auth/avatar",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "auth", "avatar"]
+            },
+            "description": "Upload user avatar image"
+          },
+          "response": []
+        },
+        {
+          "name": "Get User Stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/auth/stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "auth", "stats"]
+            },
+            "description": "Get user statistics including bookings, miles, etc."
+          },
+          "response": []
+        }
+      ],
+      "description": "User profile management endpoints"
+    },
+    {
+      "name": "✈️ Flights",
+      "item": [
+        {
+          "name": "Search Flights",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"origin\": \"HAN\",\n  \"destination\": \"SGN\",\n  \"departureDate\": \"2024-12-15\",\n  \"returnDate\": \"2024-12-20\",\n  \"passengers\": {\n    \"adults\": 1,\n    \"children\": 0,\n    \"infants\": 0\n  },\n  \"class\": \"economy\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/flights/search",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "flights", "search"]
+            },
+            "description": "Search for available flights"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Flight Details",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/flights/FLIGHT_ID",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "flights", "FLIGHT_ID"]
+            },
+            "description": "Get detailed information about a specific flight"
+          },
+          "response": []
+        }
+      ],
+      "description": "Flight search and information endpoints"
+    },
+    {
+      "name": "🎫 Bookings",
+      "item": [
+        {
+          "name": "Create Booking",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"flightId\": \"FLIGHT_ID\",\n  \"passengers\": [\n    {\n      \"title\": \"Mr\",\n      \"firstName\": \"John\",\n      \"lastName\": \"Doe\",\n      \"dateOfBirth\": \"1990-01-15\",\n      \"gender\": \"male\",\n      \"nationality\": \"Vietnam\",\n      \"documentType\": \"passport\",\n      \"documentNumber\": \"A12345678\",\n      \"documentExpiry\": \"2030-01-01\"\n    }\n  ],\n  \"contactInfo\": {\n    \"email\": \"john.doe@example.com\",\n    \"phone\": \"0901234567\"\n  },\n  \"fareType\": \"economy\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/bookings",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "bookings"]
+            },
+            "description": "Create a new booking"
+          },
+          "response": []
+        },
+        {
+          "name": "Get My Bookings",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/bookings/my-bookings",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "bookings", "my-bookings"]
+            },
+            "description": "Get all bookings for the current user"
+          },
+          "response": []
+        },
+        {
+          "name": "Search Booking by Reference",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bookingReference\": \"VJ123456\",\n  \"lastName\": \"Doe\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/bookings/search",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "bookings", "search"]
+            },
+            "description": "Search booking by reference number (public endpoint)"
+          },
+          "response": []
+        },
+        {
+          "name": "Cancel Booking",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Change of plans\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/bookings/BOOKING_ID/cancel",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "bookings", "BOOKING_ID", "cancel"]
+            },
+            "description": "Cancel a booking"
+          },
+          "response": []
+        }
+      ],
+      "description": "Booking management endpoints"
+    },
+    {
+      "name": "🏢 Airports",
+      "item": [
+        {
+          "name": "Get All Airports",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/airports",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "airports"]
+            },
+            "description": "Get list of all airports"
+          },
+          "response": []
+        },
+        {
+          "name": "Search Airports",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/airports/search?q=Ho Chi Minh",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "airports", "search"],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "Ho Chi Minh",
+                  "description": "Search query"
+                }
+              ]
+            },
+            "description": "Search airports by name, city, or code"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Popular Airports",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/airports/popular",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "airports", "popular"]
+            },
+            "description": "Get list of popular airports"
+          },
+          "response": []
+        }
+      ],
+      "description": "Airport information and search endpoints"
+    },
+    {
+      "name": "💰 Fares & Pricing",
+      "item": [
+        {
+          "name": "Calculate Fare",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"origin\": \"HAN\",\n  \"destination\": \"SGN\",\n  \"departureDate\": \"2024-12-15\",\n  \"returnDate\": \"2024-12-20\",\n  \"passengers\": {\n    \"adults\": 1,\n    \"children\": 0,\n    \"infants\": 0\n  },\n  \"class\": \"economy\",\n  \"isRoundTrip\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/fares/calculate",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "fares", "calculate"]
+            },
+            "description": "Calculate fare for specific route and conditions"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Fares by Route",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/fares/route/ROUTE_ID",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "fares", "route", "ROUTE_ID"]
+            },
+            "description": "Get all fares for a specific route"
+          },
+          "response": []
+        }
+      ],
+      "description": "Fare calculation and pricing endpoints"
+    },
+    {
+      "name": "💳 Payments",
+      "item": [
+        {
+          "name": "Create Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bookingId\": \"BOOKING_ID\",\n  \"amount\": 2500000,\n  \"paymentMethod\": \"credit_card\",\n  \"cardDetails\": {\n    \"cardNumber\": \"4111111111111111\",\n    \"expiryMonth\": \"12\",\n    \"expiryYear\": \"2025\",\n    \"cvv\": \"123\",\n    \"cardHolder\": \"John Doe\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/payments",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "payments"]
+            },
+            "description": "Create a new payment"
+          },
+          "response": []
+        },
+        {
+          "name": "Create VNPay Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bookingId\": \"BOOKING_ID\",\n  \"amount\": 2500000,\n  \"gateway\": \"vnpay\",\n  \"orderInfo\": \"VietJet Air - Thanh toán vé máy bay\",\n  \"ipAddr\": \"127.0.0.1\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/payment-gateway/create",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "payment-gateway", "create"]
+            },
+            "description": "Create VNPay payment URL"
+          },
+          "response": []
+        },
+        {
+          "name": "Get My Payments",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/payments/my-payments",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "payments", "my-payments"]
+            },
+            "description": "Get all payments for current user"
+          },
+          "response": []
+        }
+      ],
+      "description": "Payment processing endpoints"
+    },
+    {
+      "name": "🪑 Seats",
+      "item": [
+        {
+          "name": "Get Flight Seat Map",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/seats/flight/FLIGHT_ID/map",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "seats", "flight", "FLIGHT_ID", "map"]
+            },
+            "description": "Get seat map for a specific flight"
+          },
+          "response": []
+        },
+        {
+          "name": "Select Seat",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"seatNumber\": \"12A\",\n  \"passengerId\": \"PASSENGER_ID\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/seats/booking/BOOKING_ID/select",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "seats", "booking", "BOOKING_ID", "select"]
+            },
+            "description": "Select a seat for passenger"
+          },
+          "response": []
+        }
+      ],
+      "description": "Seat selection and management endpoints"
+    },
+    {
+      "name": "✅ Check-in",
+      "item": [
+        {
+          "name": "Check Eligibility",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bookingReference\": \"VJ123456\",\n  \"lastName\": \"Doe\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/checkin/eligibility",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "checkin", "eligibility"]
+            },
+            "description": "Check if booking is eligible for online check-in"
+          },
+          "response": []
+        },
+        {
+          "name": "Perform Check-in",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bookingReference\": \"VJ123456\",\n  \"lastName\": \"Doe\",\n  \"passengers\": [\n    {\n      \"passengerId\": \"PASSENGER_ID\",\n      \"seatNumber\": \"12A\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/checkin/perform",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "checkin", "perform"]
+            },
+            "description": "Perform online check-in"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Boarding Pass",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/checkin/boarding-pass/VJ123456/PASSENGER_ID",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "checkin", "boarding-pass", "VJ123456", "PASSENGER_ID"]
+            },
+            "description": "Get boarding pass for a passenger"
+          },
+          "response": []
+        }
+      ],
+      "description": "Check-in and boarding pass endpoints"
+    },
+    {
+      "name": "🔔 Notifications",
+      "item": [
+        {
+          "name": "Get My Notifications",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/notifications",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "notifications"]
+            },
+            "description": "Get all notifications for current user"
+          },
+          "response": []
+        },
+        {
+          "name": "Mark as Read",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/notifications/NOTIFICATION_ID/read",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "notifications", "NOTIFICATION_ID", "read"]
+            },
+            "description": "Mark a notification as read"
+          },
+          "response": []
+        }
+      ],
+      "description": "User notification management endpoints"
+    },
+    {
+      "name": "👨‍💼 Admin - Dashboard",
+      "item": [
+        {
+          "name": "Get Dashboard Stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/admin/dashboard",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "admin", "dashboard"]
+            },
+            "description": "Get admin dashboard statistics"
+          },
+          "response": []
+        }
+      ],
+      "description": "Admin dashboard endpoints"
+    },
+    {
+      "name": "👨‍💼 Admin - User Management",
+      "item": [
+        {
+          "name": "Get All Users",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/admin/users?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "admin", "users"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "Get list of all users with pagination"
+          },
+          "response": []
+        },
+        {
+          "name": "Update User Status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"suspended\",\n  \"reason\": \"Violation of terms of service\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/admin/users/USER_ID/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "admin", "users", "USER_ID", "status"]
+            },
+            "description": "Update user account status"
+          },
+          "response": []
+        }
+      ],
+      "description": "Admin user management endpoints"
+    },
+    {
+      "name": "👨‍💼 Admin - Flight Management",
+      "item": [
+        {
+          "name": "Create Flight",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"flightNumber\": \"VJ123\",\n  \"aircraft\": \"AIRCRAFT_ID\",\n  \"route\": {\n    \"departure\": {\n      \"airport\": \"HAN\",\n      \"terminal\": \"T1\",\n      \"gate\": \"A01\",\n      \"scheduledTime\": \"2024-12-15T08:00:00.000Z\"\n    },\n    \"arrival\": {\n      \"airport\": \"SGN\",\n      \"terminal\": \"T1\",\n      \"gate\": \"B05\",\n      \"scheduledTime\": \"2024-12-15T10:30:00.000Z\"\n    }\n  },\n  \"duration\": 150,\n  \"status\": \"scheduled\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/flights",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "flights"]
+            },
+            "description": "Create a new flight"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Flight Status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"boarding\",\n  \"actualTime\": \"2024-12-15T08:15:00.000Z\",\n  \"gate\": \"A03\",\n  \"announcement\": \"Flight VJ123 is now boarding at gate A03\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/flights/FLIGHT_ID/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "flights", "FLIGHT_ID", "status"]
+            },
+            "description": "Update flight status and send notifications"
+          },
+          "response": []
+        }
+      ],
+      "description": "Admin flight management endpoints"
+    },
+    {
+      "name": "👨‍💼 Admin - Reports",
+      "item": [
+        {
+          "name": "Get System Reports",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}{{apiPrefix}}/admin/reports?type=booking&period=monthly&startDate=2024-12-01&endDate=2024-12-31",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{apiPrefix}}", "admin", "reports"],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "booking",
+                  "description": "Report type"
+                },
+                {
+                  "key": "period",
+                  "value": "monthly",
+                  "description": "Report period"
+                },
+                {
+                  "key": "startDate",
+                  "value": "2024-12-01",
+                  "description": "Start date"
+                },
+                {
+                  "key": "endDate",
+                  "value": "2024-12-31",
+                  "description": "End date"
+                }
+              ]
+            },
+            "description": "Get various system reports and analytics"
+          },
+          "response": []
+        }
+      ],
+      "description": "Admin reporting and analytics endpoints"
+    }
+  ]
+}

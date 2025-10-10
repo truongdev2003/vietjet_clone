@@ -1,5 +1,6 @@
 const Fare = require('../models/Fare');
 const Route = require('../models/Route');
+const Airline = require('../models/Airline');
 const { asyncHandler, AppError } = require('../utils/errorHandler');
 const ApiResponse = require('../utils/apiResponse');
 
@@ -37,9 +38,8 @@ class FareController {
       .populate('airline', 'code name')
       .sort({ 'pricing.base': 1 }); // Sort by base price ascending
 
-    res.status(200).json(
-      ApiResponse.success('Lấy danh sách giá vé thành công', fares)
-    );
+    const response = ApiResponse.success(fares, 'Lấy danh sách giá vé thành công');
+    response.send(res);
   });
 
   // Tính giá vé cho booking
@@ -148,9 +148,8 @@ class FareController {
       restrictions: fare.restrictions
     };
 
-    res.status(200).json(
-      ApiResponse.success('Tính giá vé thành công', fareCalculation)
-    );
+    const response = ApiResponse.success(fareCalculation, 'Tính giá vé thành công');
+    response.send(res);
   });
 
   // Lấy danh sách tất cả giá vé (admin)
@@ -162,7 +161,7 @@ class FareController {
       airline,
       cabinClass,
       tripType,
-      status = 'active',
+      status,
       sortBy = 'createdAt',
       sortOrder = 'desc'
     } = req.query;
@@ -174,7 +173,7 @@ class FareController {
     if (airline) query.airline = airline;
     if (cabinClass) query.cabinClass = cabinClass;
     if (tripType) query.tripType = tripType;
-    if (status) query.status = status;
+    if (status) query['status.current'] = status; // Sửa: status.current thay vì status
 
     const skip = (page - 1) * limit;
     const sortOptions = { [sortBy]: sortOrder === 'desc' ? -1 : 1 };
@@ -191,19 +190,19 @@ class FareController {
 
     const totalPages = Math.ceil(total / limit);
 
-    res.status(200).json(
-      ApiResponse.success('Lấy danh sách giá vé thành công', {
-        fares,
-        pagination: {
-          currentPage: parseInt(page),
-          totalPages,
-          totalItems: total,
-          itemsPerPage: parseInt(limit),
-          hasNextPage: page < totalPages,
-          hasPrevPage: page > 1
-        }
-      })
-    );
+    const response = ApiResponse.success({
+      fares,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages,
+        totalItems: total,
+        itemsPerPage: parseInt(limit),
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1
+      }
+    }, 'Lấy danh sách giá vé thành công');
+    
+    response.send(res);
   });
 
   // Tạo giá vé mới (admin)
@@ -233,9 +232,8 @@ class FareController {
     fareData.code = fareData.code.toUpperCase();
     const fare = await Fare.create(fareData);
 
-    res.status(201).json(
-      ApiResponse.success('Tạo giá vé thành công', fare)
-    );
+    const response = ApiResponse.created(fare, 'Tạo giá vé thành công');
+    response.send(res);
   });
 
   // Cập nhật giá vé (admin)
@@ -253,9 +251,8 @@ class FareController {
       return next(new AppError('Không tìm thấy giá vé', 404));
     }
 
-    res.status(200).json(
-      ApiResponse.success('Cập nhật giá vé thành công', fare)
-    );
+    const response = ApiResponse.success(fare, 'Cập nhật giá vé thành công');
+    response.send(res);
   });
 
   // Xóa giá vé (admin)
@@ -280,9 +277,8 @@ class FareController {
 
     await Fare.findByIdAndDelete(fareId);
 
-    res.status(200).json(
-      ApiResponse.success('Xóa giá vé thành công')
-    );
+    const response = ApiResponse.success(null, 'Xóa giá vé thành công');
+    response.send(res);
   });
 
   // Lấy thông tin chi tiết giá vé
@@ -299,9 +295,8 @@ class FareController {
       return next(new AppError('Không tìm thấy giá vé', 404));
     }
 
-    res.status(200).json(
-      ApiResponse.success('Lấy thông tin giá vé thành công', fare)
-    );
+    const response = ApiResponse.success(fare, 'Lấy thông tin giá vé thành công');
+    response.send(res);
   });
 }
 

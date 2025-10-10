@@ -1,309 +1,10 @@
 import axios from 'axios';
 import { CheckCircle, CreditCard, Search, User, XCircle } from 'lucide-react';
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import styled from 'styled-components';
-
-const ManageContainer = styled.div`
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 20px;
-`;
-
-const SearchSection = styled.div`
-  background: white;
-  border-radius: 12px;
-  padding: 24px;
-  margin-bottom: 24px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-`;
-
-const SearchTitle = styled.h2`
-  color: #2d3436;
-  margin-bottom: 20px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-`;
-
-const SearchForm = styled.form`
-  display: flex;
-  gap: 16px;
-  align-items: end;
-  
-  @media (max-width: 768px) {
-    flex-direction: column;
-    align-items: stretch;
-  }
-`;
-
-const InputGroup = styled.div`
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-`;
-
-const Label = styled.label`
-  font-size: 14px;
-  color: #636e72;
-  margin-bottom: 6px;
-  font-weight: 500;
-`;
-
-const Input = styled.input`
-  padding: 12px;
-  border: 2px solid #ddd;
-  border-radius: 6px;
-  font-size: 16px;
-  transition: border-color 0.3s ease;
-  
-  &:focus {
-    outline: none;
-    border-color: #00b894;
-  }
-`;
-
-const SearchButton = styled.button`
-  background: linear-gradient(135deg, #00b894, #00a085);
-  color: white;
-  border: none;
-  padding: 12px 24px;
-  border-radius: 6px;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  transition: all 0.3s ease;
-  
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 15px rgba(0, 184, 148, 0.3);
-  }
-  
-  &:disabled {
-    background: #ddd;
-    cursor: not-allowed;
-    transform: none;
-  }
-`;
-
-const BookingResult = styled.div`
-  background: white;
-  border-radius: 12px;
-  padding: 24px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-`;
-
-const BookingHeader = styled.div`
-  display: flex;
-  justify-content: between;
-  align-items: center;
-  margin-bottom: 20px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid #f1f3f4;
-`;
-
-const BookingReference = styled.h3`
-  color: #00b894;
-  font-size: 24px;
-  margin: 0;
-`;
-
-const StatusBadge = styled.span`
-  padding: 6px 12px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  
-  &.confirmed {
-    background: #d4edda;
-    color: #155724;
-  }
-  
-  &.cancelled {
-    background: #f8d7da;
-    color: #721c24;
-  }
-  
-  &.checked_in {
-    background: #d1ecf1;
-    color: #0c5460;
-  }
-`;
-
-const BookingDetails = styled.div`
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
-  margin-bottom: 24px;
-  
-  @media (max-width: 768px) {
-    grid-template-columns: 1fr;
-    gap: 16px;
-  }
-`;
-
-const DetailSection = styled.div``;
-
-const SectionTitle = styled.h4`
-  color: #2d3436;
-  margin-bottom: 12px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-`;
-
-const DetailItem = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 0;
-  border-bottom: 1px solid #f8f9fa;
-  
-  &:last-child {
-    border-bottom: none;
-  }
-`;
-
-const DetailLabel = styled.span`
-  color: #636e72;
-  font-size: 14px;
-`;
-
-const DetailValue = styled.span`
-  color: #2d3436;
-  font-weight: 500;
-`;
-
-const FlightInfo = styled.div`
-  background: #f8f9fa;
-  border-radius: 8px;
-  padding: 16px;
-  margin-bottom: 16px;
-`;
-
-const FlightRoute = styled.div`
-  font-size: 18px;
-  font-weight: 600;
-  color: #2d3436;
-  margin-bottom: 8px;
-`;
-
-const FlightTime = styled.div`
-  color: #636e72;
-  font-size: 14px;
-  margin-bottom: 4px;
-`;
-
-const PassengersList = styled.div`
-  margin-top: 16px;
-`;
-
-const PassengerItem = styled.div`
-  background: #f8f9fa;
-  border-radius: 6px;
-  padding: 12px;
-  margin-bottom: 8px;
-`;
-
-const PassengerName = styled.div`
-  font-weight: 600;
-  color: #2d3436;
-  margin-bottom: 4px;
-`;
-
-const PassengerDetails = styled.div`
-  color: #636e72;
-  font-size: 12px;
-`;
-
-const ActionButtons = styled.div`
-  display: flex;
-  gap: 12px;
-  justify-content: flex-end;
-  padding-top: 16px;
-  border-top: 1px solid #f1f3f4;
-  
-  @media (max-width: 768px) {
-    flex-direction: column;
-  }
-`;
-
-const ActionButton = styled.button`
-  padding: 10px 20px;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  
-  &.primary {
-    background: linear-gradient(135deg, #00b894, #00a085);
-    color: white;
-    border: none;
-    
-    &:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 2px 8px rgba(0, 184, 148, 0.3);
-    }
-  }
-  
-  &.secondary {
-    background: white;
-    color: #636e72;
-    border: 2px solid #ddd;
-    
-    &:hover {
-      border-color: #00b894;
-      color: #00b894;
-    }
-  }
-  
-  &.danger {
-    background: white;
-    color: #e17055;
-    border: 2px solid #e17055;
-    
-    &:hover {
-      background: #e17055;
-      color: white;
-    }
-  }
-  
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    transform: none !important;
-  }
-`;
-
-const ErrorMessage = styled.div`
-  background: #f8d7da;
-  color: #721c24;
-  padding: 16px;
-  border-radius: 8px;
-  margin-bottom: 20px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-`;
-
-const SuccessMessage = styled.div`
-  background: #d4edda;
-  color: #155724;
-  padding: 16px;
-  border-radius: 8px;
-  margin-bottom: 20px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-`;
+import Footer from '../components/Footer';
+import Header from '../components/Header';
 
 const ManageBooking = () => {
-  const navigate = useNavigate();
   const [searchData, setSearchData] = useState({
     bookingReference: '',
     email: ''
@@ -329,7 +30,6 @@ const ManageBooking = () => {
     try {
       const response = await axios.get(`http://localhost:5000/api/bookings/${searchData.bookingReference}`);
       
-      // Verify email matches
       if (response.data.contactInfo.email.toLowerCase() !== searchData.email.toLowerCase()) {
         setError('Email không khớp với thông tin đặt vé');
         setBooking(null);
@@ -419,160 +119,183 @@ const ManageBooking = () => {
   const canCancel = booking && booking.status === 'confirmed';
 
   return (
-    <ManageContainer>
-      <SearchSection>
-        <SearchTitle>
-          <Search size={24} />
-          Quản lý đặt vé
-        </SearchTitle>
+    <>
+      <Header />
+      <div className="max-w-4xl mx-auto px-5 py-5">
+        {/* Search Section */}
+        <div className="bg-white rounded-xl p-6 mb-6 shadow-lg">
+          <h2 className="text-gray-800 mb-5 flex items-center gap-2 text-xl font-semibold">
+            <Search size={24} />
+            Quản lý đặt vé
+          </h2>
         
-        <SearchForm onSubmit={handleSearch}>
-          <InputGroup>
-            <Label>Mã đặt vé</Label>
-            <Input
+        <form onSubmit={handleSearch} className="flex gap-4 items-end flex-col md:flex-row">
+          <div className="flex flex-col flex-1 w-full">
+            <label className="text-sm text-gray-500 mb-1.5 font-medium">Mã đặt vé</label>
+            <input
               type="text"
               value={searchData.bookingReference}
               onChange={(e) => handleInputChange('bookingReference', e.target.value.toUpperCase())}
               placeholder="VD: VJ123ABC"
               required
+              className="px-3 py-3 border-2 border-gray-300 rounded-md text-base transition-colors focus:outline-none focus:border-primary-500"
             />
-          </InputGroup>
+          </div>
           
-          <InputGroup>
-            <Label>Email</Label>
-            <Input
+          <div className="flex flex-col flex-1 w-full">
+            <label className="text-sm text-gray-500 mb-1.5 font-medium">Email</label>
+            <input
               type="email"
               value={searchData.email}
               onChange={(e) => handleInputChange('email', e.target.value)}
               placeholder="email@example.com"
               required
+              className="px-3 py-3 border-2 border-gray-300 rounded-md text-base transition-colors focus:outline-none focus:border-primary-500"
             />
-          </InputGroup>
+          </div>
           
-          <SearchButton type="submit" disabled={loading}>
+          <button 
+            type="submit" 
+            disabled={loading}
+            className="bg-gradient-to-br from-primary-500 to-primary-600 text-white border-none px-6 py-3 rounded-md text-base font-semibold cursor-pointer flex items-center gap-2 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg disabled:bg-gray-300 disabled:cursor-not-allowed disabled:transform-none w-full md:w-auto"
+          >
             <Search size={16} />
             {loading ? 'Đang tìm...' : 'Tìm kiếm'}
-          </SearchButton>
-        </SearchForm>
-      </SearchSection>
+          </button>
+        </form>
+      </div>
 
+      {/* Error Message */}
       {error && (
-        <ErrorMessage>
+        <div className="bg-red-100 text-red-800 px-4 py-4 rounded-lg mb-5 flex items-center gap-2">
           <XCircle size={20} />
           {error}
-        </ErrorMessage>
+        </div>
       )}
 
+      {/* Success Message */}
       {successMessage && (
-        <SuccessMessage>
+        <div className="bg-green-100 text-green-800 px-4 py-4 rounded-lg mb-5 flex items-center gap-2">
           <CheckCircle size={20} />
           {successMessage}
-        </SuccessMessage>
+        </div>
       )}
 
+      {/* Booking Result */}
       {booking && (
-        <BookingResult>
-          <BookingHeader>
-            <BookingReference>{booking.bookingReference}</BookingReference>
-            <StatusBadge className={booking.status}>
+        <div className="bg-white rounded-xl p-6 shadow-lg">
+          {/* Booking Header */}
+          <div className="flex justify-between items-center mb-5 pb-4 border-b border-gray-100">
+            <h3 className="text-primary-500 text-2xl m-0 font-bold">{booking.bookingReference}</h3>
+            <span className={`px-3 py-1.5 rounded-full text-xs font-semibold uppercase ${
+              booking.status === 'confirmed' ? 'bg-green-100 text-green-800' :
+              booking.status === 'cancelled' ? 'bg-red-100 text-red-800' :
+              booking.status === 'checked_in' ? 'bg-blue-100 text-blue-800' : ''
+            }`}>
               {getStatusText(booking.status)}
-            </StatusBadge>
-          </BookingHeader>
+            </span>
+          </div>
 
-          <FlightInfo>
-            <FlightRoute>
+          {/* Flight Info */}
+          <div className="bg-gray-50 rounded-lg p-4 mb-4">
+            <div className="text-lg font-semibold text-gray-800 mb-2">
               {booking.flight.departure.airport.city} → {booking.flight.arrival.airport.city}
-            </FlightRoute>
-            <FlightTime>
+            </div>
+            <div className="text-gray-500 text-sm">
               {booking.flight.flightNumber} • {formatDate(booking.flight.departure.time)} • 
               {formatTime(booking.flight.departure.time)} - {formatTime(booking.flight.arrival.time)}
-            </FlightTime>
-          </FlightInfo>
+            </div>
+          </div>
 
-          <BookingDetails>
-            <DetailSection>
-              <SectionTitle>
+          {/* Booking Details */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div>
+              <h4 className="text-gray-800 mb-3 flex items-center gap-2 font-semibold">
                 <User size={16} />
                 Thông tin liên hệ
-              </SectionTitle>
-              <DetailItem>
-                <DetailLabel>Email</DetailLabel>
-                <DetailValue>{booking.contactInfo.email}</DetailValue>
-              </DetailItem>
-              <DetailItem>
-                <DetailLabel>Điện thoại</DetailLabel>
-                <DetailValue>{booking.contactInfo.phone}</DetailValue>
-              </DetailItem>
-            </DetailSection>
+              </h4>
+              <div className="flex justify-between items-center py-2 border-b border-gray-50">
+                <span className="text-gray-500 text-sm">Email</span>
+                <span className="text-gray-800 font-medium">{booking.contactInfo.email}</span>
+              </div>
+              <div className="flex justify-between items-center py-2">
+                <span className="text-gray-500 text-sm">Điện thoại</span>
+                <span className="text-gray-800 font-medium">{booking.contactInfo.phone}</span>
+              </div>
+            </div>
 
-            <DetailSection>
-              <SectionTitle>
+            <div>
+              <h4 className="text-gray-800 mb-3 flex items-center gap-2 font-semibold">
                 <CreditCard size={16} />
                 Thanh toán
-              </SectionTitle>
-              <DetailItem>
-                <DetailLabel>Tổng tiền</DetailLabel>
-                <DetailValue>{formatPrice(booking.totalAmount)}</DetailValue>
-              </DetailItem>
-              <DetailItem>
-                <DetailLabel>Trạng thái</DetailLabel>
-                <DetailValue>
+              </h4>
+              <div className="flex justify-between items-center py-2 border-b border-gray-50">
+                <span className="text-gray-500 text-sm">Tổng tiền</span>
+                <span className="text-gray-800 font-medium">{formatPrice(booking.totalAmount)}</span>
+              </div>
+              <div className="flex justify-between items-center py-2">
+                <span className="text-gray-500 text-sm">Trạng thái</span>
+                <span className="text-gray-800 font-medium">
                   {booking.paymentStatus === 'paid' ? 'Đã thanh toán' : 
                    booking.paymentStatus === 'refunded' ? 'Đã hoàn tiền' : 'Chưa thanh toán'}
-                </DetailValue>
-              </DetailItem>
-            </DetailSection>
-          </BookingDetails>
+                </span>
+              </div>
+            </div>
+          </div>
 
-          <SectionTitle>
+          {/* Passengers List */}
+          <h4 className="text-gray-800 mb-3 flex items-center gap-2 font-semibold">
             <User size={16} />
             Hành khách ({booking.passengers.length})
-          </SectionTitle>
-          <PassengersList>
+          </h4>
+          <div className="mt-4">
             {booking.passengers.map((passenger, index) => (
-              <PassengerItem key={index}>
-                <PassengerName>
+              <div key={index} className="bg-gray-50 rounded-md p-3 mb-2">
+                <div className="font-semibold text-gray-800 mb-1">
                   {passenger.title} {passenger.firstName} {passenger.lastName}
-                </PassengerName>
-                <PassengerDetails>
+                </div>
+                <div className="text-gray-500 text-xs">
                   {passenger.seatNumber && `Ghế: ${passenger.seatNumber} • `}
                   Hạng: {passenger.seatClass === 'economy' ? 'Phổ thông' : 'Thương gia'}
-                </PassengerDetails>
-              </PassengerItem>
+                </div>
+              </div>
             ))}
-          </PassengersList>
+          </div>
 
-          <ActionButtons>
+          {/* Action Buttons */}
+          <div className="flex gap-3 justify-end pt-4 border-t border-gray-100 flex-col md:flex-row">
             {canCheckIn && (
-              <ActionButton 
-                className="primary" 
+              <button 
                 onClick={handleCheckIn}
                 disabled={loading}
+                className="px-5 py-2.5 rounded-md text-sm font-semibold cursor-pointer transition-all bg-gradient-to-br from-primary-500 to-primary-600 text-white border-none hover:-translate-y-0.5 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
               >
                 Check-in trực tuyến
-              </ActionButton>
+              </button>
             )}
             
-            <ActionButton 
-              className="secondary"
+            <button 
               onClick={() => window.print()}
+              className="px-5 py-2.5 rounded-md text-sm font-semibold cursor-pointer transition-all bg-white text-gray-500 border-2 border-gray-300 hover:border-primary-500 hover:text-primary-500"
             >
               In vé
-            </ActionButton>
+            </button>
             
             {canCancel && (
-              <ActionButton 
-                className="danger"
+              <button 
                 onClick={handleCancel}
                 disabled={loading}
+                className="px-5 py-2.5 rounded-md text-sm font-semibold cursor-pointer transition-all bg-white text-red-500 border-2 border-red-500 hover:bg-red-500 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
               >
                 Hủy đặt vé
-              </ActionButton>
+              </button>
             )}
-          </ActionButtons>
-        </BookingResult>
+          </div>
+        </div>
       )}
-    </ManageContainer>
+      </div>
+      <Footer />
+    </>
   );
 };
 

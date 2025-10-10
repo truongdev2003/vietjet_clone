@@ -97,17 +97,22 @@ const airportSchema = new mongoose.Schema({
       }
     },
     coordinates: {
-      latitude: {
-        type: Number,
-        required: true,
-        min: -90,
-        max: 90
+      type: {
+        type: String,
+        enum: ['Point'],
+        required: true
       },
-      longitude: {
-        type: Number,
+      coordinates: {
+        type: [Number],
         required: true,
-        min: -180,
-        max: 180
+        validate: {
+          validator: function(arr) {
+            return arr.length === 2 && 
+                   arr[0] >= -180 && arr[0] <= 180 && // longitude
+                   arr[1] >= -90 && arr[1] <= 90;     // latitude
+          },
+          message: 'Coordinates must be [longitude, latitude] with valid ranges'
+        }
       }
     },
     elevation: Number // mét so với mực nước biển
@@ -270,6 +275,9 @@ airportSchema.virtual('fullName').get(function() {
 
 // Virtual cho tổng số gates
 airportSchema.virtual('totalGates').get(function() {
+  if (!this.infrastructure || !this.infrastructure.terminals || !Array.isArray(this.infrastructure.terminals)) {
+    return 0;
+  }
   return this.infrastructure.terminals.reduce((total, terminal) => {
     return total + (terminal.gates ? terminal.gates.length : 0);
   }, 0);

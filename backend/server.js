@@ -27,7 +27,9 @@ const {
   csrfProtection,
   generateCSRFToken,
   csrfErrorHandler,
+  doubleSubmitCookie,
   configureSameSiteCookies,
+  getCSRFToken,
   conditionalCSRF
 } = require('./middleware/csrf');
 
@@ -47,6 +49,8 @@ const checkinRoutes = require('./routes/checkin');
 const paymentGatewayRoutes = require('./routes/payment-gateway');
 const adminRoutes = require('./routes/admin');
 const twoFactorAuthRoutes = require('./routes/twoFactorAuth');
+const bannerRoutes = require('./routes/banners');
+const promoRoutes = require('./routes/promo');
  
 const app = express();
 
@@ -68,22 +72,29 @@ app.use(cookieParser());
 // Request size limiting
 app.use(requestSizeLimit);
 
-// MongoDB injection protection
-app.use(mongoSanitization);
-
-// XSS protection
-app.use(xssProtection);
-
-// HTTP Parameter Pollution protection
-app.use(parameterPollutionProtection);
-
 // CORS Configuration
-app.use(cors({
-  origin: config.CORS_ORIGIN,
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or Postman)
+    if (!origin) return callback(null, true);
+    
+    // Parse allowed origins from config (can be comma-separated)
+    const allowedOrigins = config.CORS_ORIGIN.split(',').map(o => o.trim());
+    
+    if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key', 'CSRF-Token', 'X-CSRF-Token']
-}));
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key', 'CSRF-Token', 'X-CSRF-Token'],
+  exposedHeaders: ['X-CSRF-Token'],
+  maxAge: 86400 // 24 hours
+};
+
+app.use(cors(corsOptions));
 
 // Rate Limiting - Apply to all requests
 app.use(apiLimiter);
@@ -93,6 +104,15 @@ app.use(speedLimiter);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// MongoDB injection protection (PHẢI SAU body parser)
+app.use(mongoSanitization);
+
+// XSS protection
+app.use(xssProtection);
+
+// HTTP Parameter Pollution protection
+app.use(parameterPollutionProtection);
+
 // Logging middleware
 if (config.NODE_ENV === 'development') {
   app.use(morgan('dev'));
@@ -100,30 +120,63 @@ if (config.NODE_ENV === 'development') {
   app.use(morgan('combined'));
 }
 
-// CSRF Protection (conditional - skip for certain routes)
-const skipCSRFRoutes = [
-  '/api/csrf-token',
-  '/api/auth/login',
-  '/api/auth/register',
-  '/api/bookings/search',
-  '/api/flights/search'
-];
-app.use(conditionalCSRF(skipCSRFRoutes));
+// CSRF Token endpoint - MUST be BEFORE CSRF middleware
+app.get('/api/csrf-token', (req, res) => {
+  try {
+    const { v4: uuidv4 } = require('uuid');
+    const token = uuidv4();
+    
+    // Set CSRF token in cookie
+    res.cookie('csrf-token', token, {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax', // Changed from 'strict' to 'lax' for cross-origin
+      maxAge: 3600000 // 1 hour
+    });
+    
+    res.json({
+      success: true,
+      csrfToken: token,
+      message: 'CSRF token generated'
+    });
+  } catch (error) {
+    console.error('CSRF token generation error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to generate CSRF token'
+    });
+  }
+});
 
-// CSRF Error Handler
-app.use(csrfErrorHandler);
+// Custom CSRF Protection using double-submit cookie pattern
+const customCSRFProtection = (req, res, next) => {
+  // Skip CSRF check for these routes
+  const skipRoutes = [
+    '/api/csrf-token',
+    '/api/auth/login',
+    '/api/auth/register',
+    '/api/bookings/search',
+    '/api/flights/search'
+  ];
+  
+  // Skip for GET, HEAD, OPTIONS
+  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+    return next();
+  }
+  
+  // Check if route should be skipped
+  if (skipRoutes.some(route => req.path === route)) {
+    return next();
+  }
+  
+  // Apply double-submit cookie verification
+  return doubleSubmitCookie.verify(req, res, next);
+};
+
+app.use(customCSRFProtection);
 
 // Serve static files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-
-// CSRF Token endpoint
-app.get('/api/csrf-token', generateCSRFToken, (req, res) => {
-  res.json({
-    success: true,
-    csrfToken: res.locals.csrfToken,
-    message: 'CSRF token generated'
-  });
-});
 
 // Health check route
 app.get('/health', (req, res) => {
@@ -153,6 +206,9 @@ app.use(`${config.API_PREFIX}/checkin`, checkinRoutes);
 app.use(`${config.API_PREFIX}/payment-gateway`, paymentGatewayRoutes);
 app.use(`${config.API_PREFIX}/admin`, adminRoutes);
 app.use(`${config.API_PREFIX}/2fa`, twoFactorAuthRoutes);
+app.use(`${config.API_PREFIX}/banners`, bannerRoutes);
+app.use(`${config.API_PREFIX}/promo`, promoRoutes);
+
 // Welcome route
 app.get('/', (req, res) => {
   res.status(200).json({
@@ -178,7 +234,8 @@ app.get('/', (req, res) => {
       checkin: `${config.API_PREFIX}/checkin`,
       paymentGateway: `${config.API_PREFIX}/payment-gateway`,
       admin: `${config.API_PREFIX}/admin`,
-      twoFactorAuth: `${config.API_PREFIX}/2fa`
+      twoFactorAuth: `${config.API_PREFIX}/2fa`,
+      promo: `${config.API_PREFIX}/promo`
     }
   });
 });

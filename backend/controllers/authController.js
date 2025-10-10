@@ -10,185 +10,310 @@ const path = require('path');
 class AuthController {
   // Register new user
   static register = asyncHandler(async (req, res, next) => {
-    const {
-      title,
-      firstName,
-      lastName,
-      dateOfBirth,
-      gender,
-      nationality,
-      email,
-      phone,
-      password,
-      confirmPassword
-    } = req.body;
-
-    // Validate required fields
-    if (!title || !firstName || !lastName || !dateOfBirth || !gender || !email || !phone || !password) {
-      return next(new AppError('Vui lòng điền đầy đủ thông tin bắt buộc', 400));
-    }
-
-    // Validate password confirmation
-    if (password !== confirmPassword) {
-      return next(new AppError('Mật khẩu xác nhận không khớp', 400));
-    }
-
-    // Validate password strength
-    const passwordValidation = AuthUtils.validatePasswordStrength(password);
-    if (!passwordValidation.isValid) {
-      return next(new AppError(passwordValidation.errors.join(', '), 400));
-    }
-
-    // Validate email format
-    if (!AuthUtils.isValidEmail(email)) {
-      return next(new AppError('Email không hợp lệ', 400));
-    }
-
-    // Validate phone format
-    if (!AuthUtils.isValidPhone(phone)) {
-      return next(new AppError('Số điện thoại không hợp lệ', 400));
-    }
-
-    // Check if user already exists
-    const existingUser = await User.findOne({
-      $or: [
-        { 'contactInfo.email': email.toLowerCase() },
-        { 'contactInfo.phone': AuthUtils.formatPhoneNumber(phone) }
-      ]
-    });
-
-    if (existingUser) {
-      return next(new AppError('Email hoặc số điện thoại đã được sử dụng', 400));
-    }
-
-    // Calculate age
-    const age = AuthUtils.calculateAge(dateOfBirth);
-    if (age < 18) {
-      return next(new AppError('Bạn phải từ 18 tuổi trở lên để đăng ký', 400));
-    }
-
-    // Generate email verification token
-    const emailVerificationToken = AuthUtils.generateRandomToken();
-    const hashedEmailToken = AuthUtils.hashToken(emailVerificationToken);
-
-    // Create new user
-    const newUser = await User.create({
-      personalInfo: {
-        title: AuthUtils.sanitizeInput(title),
-        firstName: AuthUtils.sanitizeInput(firstName),
-        lastName: AuthUtils.sanitizeInput(lastName),
-        dateOfBirth: new Date(dateOfBirth),
+    try {
+      console.log('=== REGISTER REQUEST ===');
+      console.log('Request body:', JSON.stringify(req.body, null, 2));
+      
+      const {
+        title,
+        firstName,
+        lastName,
+        dateOfBirth,
         gender,
-        nationality: nationality || 'Vietnam'
-      },
-      contactInfo: {
-        email: email.toLowerCase(),
-        phone: AuthUtils.formatPhoneNumber(phone)
-      },
-      account: {
-        password, // Will be hashed by pre-save middleware
-        emailVerificationToken: hashedEmailToken,
-        emailVerificationExpires: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
-      },
-      metadata: {
-        registrationSource: 'web'
+        nationality,
+        email,
+        phone,
+        password,
+        confirmPassword
+      } = req.body;
+
+      // Validate required fields
+      if (!title || !firstName || !lastName || !dateOfBirth || !gender || !email || !phone || !password) {
+        console.log('Missing fields:', {
+          title: !!title,
+          firstName: !!firstName,
+          lastName: !!lastName,
+          dateOfBirth: !!dateOfBirth,
+          gender: !!gender,
+          email: !!email,
+          phone: !!phone,
+          password: !!password
+        });
+        return next(new AppError('Vui lòng điền đầy đủ thông tin bắt buộc', 400));
       }
-    });
 
-    // Generate tokens
-    const payload = {
-      userId: newUser._id,
-      email: newUser.contactInfo.email,
-      isEmailVerified: newUser.account.isEmailVerified
-    };
-    
-    const tokens = JWTService.generateTokenPair(payload);
+      // Validate password confirmation
+      if (password !== confirmPassword) {
+        return next(new AppError('Mật khẩu xác nhận không khớp', 400));
+      }
 
-    // TODO: Send verification email
-    console.log('Email verification token:', emailVerificationToken);
+      // Validate password strength
+      const passwordValidation = AuthUtils.validatePasswordStrength(password);
+      if (!passwordValidation.isValid) {
+        return next(new AppError(passwordValidation.errors.join(', '), 400));
+      }
 
-    // Remove password from response
-    const userResponse = { ...newUser.toObject() };
-    delete userResponse.account.password;
-    delete userResponse.account.emailVerificationToken;
+      // Validate email format
+      if (!AuthUtils.isValidEmail(email)) {
+        return next(new AppError('Email không hợp lệ', 400));
+      }
 
-    const response = ApiResponse.created({
-      user: userResponse,
-      tokens,
-      message: 'Vui lòng kiểm tra email để xác thực tài khoản'
-    }, 'Đăng ký thành công');
+      // Validate phone format
+      if (!AuthUtils.isValidPhone(phone)) {
+        return next(new AppError('Số điện thoại không hợp lệ', 400));
+      }
 
-    response.send(res);
+      // Validate date of birth
+      const birthDate = new Date(dateOfBirth);
+      if (isNaN(birthDate.getTime())) {
+        return next(new AppError('Ngày sinh không hợp lệ', 400));
+      }
+
+      // Calculate age
+      const age = AuthUtils.calculateAge(dateOfBirth);
+      if (age < 18) {
+        return next(new AppError('Bạn phải từ 18 tuổi trở lên để đăng ký', 400));
+      }
+
+      if (age > 120) {
+        return next(new AppError('Ngày sinh không hợp lệ', 400));
+      }
+
+      // Validate gender
+      const validGenders = ['male', 'female', 'other'];
+      if (!validGenders.includes(gender)) {
+        console.log('Invalid gender:', gender);
+        return next(new AppError('Giới tính không hợp lệ', 400));
+      }
+
+      // Validate title - PHẢI KHỚP VỚI USER SCHEMA
+      const validTitles = ['Mr', 'Mrs', 'Ms', 'Dr'];
+      if (!validTitles.includes(title)) {
+        console.log('Invalid title:', title, 'Valid titles:', validTitles);
+        return next(new AppError('Danh xưng không hợp lệ. Chọn: Mr, Mrs, Ms, Dr', 400));
+      }
+
+      // Check if user already exists
+      let existingUser;
+      try {
+        existingUser = await User.findOne({
+          $or: [
+            { 'contactInfo.email': email.toLowerCase() },
+            { 'contactInfo.phone': AuthUtils.formatPhoneNumber(phone) }
+          ]
+        });
+      } catch (dbError) {
+        console.error('Database error checking existing user:', dbError);
+        return next(new AppError('Không thể kiểm tra thông tin người dùng. Vui lòng thử lại.', 500));
+      }
+
+      if (existingUser) {
+        return next(new AppError('Email hoặc số điện thoại đã được sử dụng', 400));
+      }
+
+      // Generate email verification token
+      let emailVerificationToken, hashedEmailToken;
+      try {
+        emailVerificationToken = AuthUtils.generateRandomToken();
+        hashedEmailToken = AuthUtils.hashToken(emailVerificationToken);
+      } catch (tokenError) {
+        console.error('Token generation error:', tokenError);
+        return next(new AppError('Không thể tạo mã xác thực. Vui lòng thử lại.', 500));
+      }
+
+      // Create new user
+      let newUser;
+      try {
+        newUser = await User.create({
+          personalInfo: {
+            title: AuthUtils.sanitizeInput(title),
+            firstName: AuthUtils.sanitizeInput(firstName),
+            lastName: AuthUtils.sanitizeInput(lastName),
+            dateOfBirth: birthDate,
+            gender,
+            nationality: nationality || 'Vietnam'
+          },
+          contactInfo: {
+            email: email.toLowerCase().trim(),
+            phone: AuthUtils.formatPhoneNumber(phone)
+          },
+          account: {
+            password, // Will be hashed by pre-save middleware
+            emailVerificationToken: hashedEmailToken,
+            emailVerificationExpires: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
+          },
+          metadata: {
+            registrationSource: 'web'
+          }
+        });
+      } catch (createError) {
+        console.error('User creation error:', createError);
+        
+        // Handle specific MongoDB errors
+        if (createError.code === 11000) {
+          return next(new AppError('Email hoặc số điện thoại đã được sử dụng', 400));
+        }
+        
+        if (createError.name === 'ValidationError') {
+          const messages = Object.values(createError.errors).map(err => err.message);
+          return next(new AppError(messages.join(', '), 400));
+        }
+        
+        return next(new AppError('Không thể tạo tài khoản. Vui lòng thử lại.', 500));
+      }
+
+      // Generate tokens
+      let tokens;
+      try {
+        const payload = {
+          userId: newUser._id,
+          email: newUser.contactInfo.email,
+          isEmailVerified: newUser.account.isEmailVerified
+        };
+        
+        tokens = JWTService.generateTokenPair(payload);
+      } catch (jwtError) {
+        console.error('JWT generation error:', jwtError);
+        // User created but token generation failed - still return success
+        // User can login manually
+        return next(new AppError('Đăng ký thành công nhưng không thể tạo token. Vui lòng đăng nhập.', 201));
+      }
+
+      // TODO: Send verification email
+      try {
+        console.log('Email verification token:', emailVerificationToken);
+        // await emailService.sendVerificationEmail(newUser.contactInfo.email, emailVerificationToken);
+      } catch (emailError) {
+        console.error('Email sending error:', emailError);
+        // Continue - user is created, email can be resent later
+      }
+
+      // Remove sensitive data from response
+      const userResponse = { ...newUser.toObject() };
+      delete userResponse.account.password;
+      delete userResponse.account.emailVerificationToken;
+      delete userResponse.account.passwordResetToken;
+
+      const response = ApiResponse.created({
+        user: userResponse,
+        tokens,
+        message: 'Vui lòng kiểm tra email để xác thực tài khoản'
+      }, 'Đăng ký thành công');
+
+      response.send(res);
+    } catch (error) {
+      console.error('Unexpected error in register:', error);
+      return next(new AppError('Đã xảy ra lỗi không mong muốn. Vui lòng thử lại.', 500));
+    }
   });
 
   // Login user
   static login = asyncHandler(async (req, res, next) => {
-    const { email, password, rememberMe } = req.body;
+    try {
+      const { email, password, rememberMe } = req.body;
 
-    // Validate input
-    if (!email || !password) {
-      return next(new AppError('Vui lòng nhập email và mật khẩu', 400));
-    }
-
-    // Find user by email
-    const user = await User.findOne({ 'contactInfo.email': email.toLowerCase() })
-      .select('+account.password +account.loginAttempts +account.lockUntil');
-
-    if (!user) {
-      return next(new AppError('Email hoặc mật khẩu không đúng', 401));
-    }
-
-    // Check if account is locked
-    if (user.isLocked) {
-      return next(new AppError('Tài khoản đã bị khóa do đăng nhập sai quá nhiều lần', 423));
-    }
-
-    // Check if account is active
-    if (user.status !== 'active') {
-      return next(new AppError('Tài khoản không hoạt động', 401));
-    }
-
-    // Verify password
-    const isPasswordValid = await user.comparePassword(password);
-    
-    if (!isPasswordValid) {
-      // Increment login attempts
-      await user.incLoginAttempts();
-      return next(new AppError('Email hoặc mật khẩu không đúng', 401));
-    }
-
-    // Reset login attempts on successful login
-    const updates = {
-      'account.lastLogin': new Date(),
-      $unset: {
-        'account.loginAttempts': 1,
-        'account.lockUntil': 1
+      // Validate input
+      if (!email || !password) {
+        return next(new AppError('Vui lòng nhập email và mật khẩu', 400));
       }
-    };
-    await User.updateOne({ _id: user._id }, updates);
 
-    // Generate tokens
-    const tokenExpire = rememberMe ? '30d' : '24h';
-    const payload = {
-      userId: user._id,
-      email: user.contactInfo.email,
-      isEmailVerified: user.account.isEmailVerified
-    };
-    
-    const tokens = JWTService.generateTokenPair(payload);
+      // Validate email format
+      if (!AuthUtils.isValidEmail(email)) {
+        return next(new AppError('Email không hợp lệ', 400));
+      }
 
-    // Remove sensitive data from response
-    const userResponse = { ...user.toObject() };
-    delete userResponse.account.password;
-    delete userResponse.account.emailVerificationToken;
-    delete userResponse.account.passwordResetToken;
+      // Find user by email
+      let user;
+      try {
+        user = await User.findOne({ 'contactInfo.email': email.toLowerCase() })
+          .select('+account.password +account.loginAttempts +account.lockUntil');
+      } catch (dbError) {
+        console.error('Database error finding user:', dbError);
+        return next(new AppError('Không thể đăng nhập. Vui lòng thử lại.', 500));
+      }
 
-    const response = ApiResponse.success({
-      user: userResponse,
-      tokens
-    }, 'Đăng nhập thành công');
+      if (!user) {
+        return next(new AppError('Email hoặc mật khẩu không đúng', 401));
+      }
 
-    response.send(res);
+      // Check if account is locked
+      if (user.isLocked) {
+        const lockTime = Math.ceil((user.account.lockUntil - Date.now()) / 60000);
+        return next(new AppError(`Tài khoản đã bị khóa. Vui lòng thử lại sau ${lockTime} phút.`, 423));
+      }
+
+      // Check if account is active
+      if (user.status !== 'active') {
+        return next(new AppError('Tài khoản không hoạt động', 401));
+      }
+
+      // Verify password
+      let isPasswordValid;
+      try {
+        isPasswordValid = await user.comparePassword(password);
+      } catch (pwdError) {
+        console.error('Password comparison error:', pwdError);
+        return next(new AppError('Không thể xác thực mật khẩu. Vui lòng thử lại.', 500));
+      }
+      
+      if (!isPasswordValid) {
+        // Increment login attempts
+        try {
+          await user.incLoginAttempts();
+        } catch (incError) {
+          console.error('Error incrementing login attempts:', incError);
+        }
+        return next(new AppError('Email hoặc mật khẩu không đúng', 401));
+      }
+
+      // Reset login attempts on successful login
+      try {
+        const updates = {
+          'account.lastLogin': new Date(),
+          $unset: {
+            'account.loginAttempts': 1,
+            'account.lockUntil': 1
+          }
+        };
+        await User.updateOne({ _id: user._id }, updates);
+      } catch (updateError) {
+        console.error('Error updating login info:', updateError);
+        // Continue - this is not critical
+      }
+
+      // Generate tokens
+      let tokens;
+      try {
+        const payload = {
+          userId: user._id,
+          email: user.contactInfo.email,
+          isEmailVerified: user.account.isEmailVerified
+        };
+        
+        tokens = JWTService.generateTokenPair(payload, rememberMe);
+      } catch (jwtError) {
+        console.error('JWT generation error:', jwtError);
+        return next(new AppError('Không thể tạo phiên đăng nhập. Vui lòng thử lại.', 500));
+      }
+
+      // Remove sensitive data from response
+      const userResponse = { ...user.toObject() };
+      delete userResponse.account.password;
+      delete userResponse.account.emailVerificationToken;
+      delete userResponse.account.passwordResetToken;
+      delete userResponse.account.loginAttempts;
+      delete userResponse.account.lockUntil;
+
+      const response = ApiResponse.success({
+        user: userResponse,
+        tokens
+      }, 'Đăng nhập thành công');
+
+      response.send(res);
+    } catch (error) {
+      console.error('Unexpected error in login:', error);
+      return next(new AppError('Đã xảy ra lỗi không mong muốn. Vui lòng thử lại.', 500));
+    }
   });
 
   // Refresh access token
@@ -199,33 +324,43 @@ class AuthController {
       return next(new AppError('Refresh token là bắt buộc', 400));
     }
 
+    // Verify refresh token - let the error bubble up to be caught by asyncHandler
+    let decoded;
     try {
-      // Verify refresh token
-      const decoded = JWTService.verifyRefreshToken(refreshToken);
-      
-      // Find user
-      const user = await User.findById(decoded.userId);
-      if (!user || user.status !== 'active') {
-        return next(new AppError('Token không hợp lệ', 401));
-      }
-
-      // Generate new tokens
-      const payload = {
-        userId: user._id,
-        email: user.contactInfo.email,
-        isEmailVerified: user.account.isEmailVerified
-      };
-      
-      const tokens = JWTService.generateTokenPair(payload);
-
-      const response = ApiResponse.success({
-        tokens
-      }, 'Token được làm mới thành công');
-
-      response.send(res);
+      decoded = JWTService.verifyRefreshToken(refreshToken);
     } catch (error) {
+      // JWT verification errors will be caught by global error handler
       return next(new AppError('Token không hợp lệ hoặc đã hết hạn', 401));
     }
+
+    if (!decoded || !decoded.userId) {
+      return next(new AppError('Token không hợp lệ', 401));
+    }
+    
+    // Find user
+    const user = await User.findById(decoded.userId);
+    if (!user) {
+      return next(new AppError('Người dùng không tồn tại', 404));
+    }
+
+    if (user.status !== 'active') {
+      return next(new AppError('Tài khoản không hoạt động', 401));
+    }
+
+    // Generate new tokens
+    const payload = {
+      userId: user._id,
+      email: user.contactInfo.email,
+      isEmailVerified: user.account.isEmailVerified
+    };
+    
+    const tokens = JWTService.generateTokenPair(payload);
+
+    const response = ApiResponse.success({
+      tokens
+    }, 'Token được làm mới thành công');
+
+    response.send(res);
   });
 
   // Logout user
@@ -243,6 +378,11 @@ class AuthController {
 
     if (!email) {
       return next(new AppError('Vui lòng nhập email', 400));
+    }
+
+    // Validate email format
+    if (!AuthUtils.isValidEmail(email)) {
+      return next(new AppError('Email không hợp lệ', 400));
     }
 
     // Find user by email
@@ -263,7 +403,14 @@ class AuthController {
     // Save reset token to user
     user.account.passwordResetToken = hashedResetToken;
     user.account.passwordResetExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-    await user.save({ validateBeforeSave: false });
+    
+    try {
+      await user.save({ validateBeforeSave: false });
+    } catch (error) {
+      user.account.passwordResetToken = undefined;
+      user.account.passwordResetExpires = undefined;
+      return next(new AppError('Không thể gửi email đặt lại mật khẩu. Vui lòng thử lại.', 500));
+    }
 
     // TODO: Send reset email
     console.log('Password reset token:', resetToken);
@@ -314,7 +461,11 @@ class AuthController {
     user.account.loginAttempts = undefined;
     user.account.lockUntil = undefined;
     
-    await user.save();
+    try {
+      await user.save();
+    } catch (error) {
+      return next(new AppError('Không thể đặt lại mật khẩu. Vui lòng thử lại.', 500));
+    }
 
     const response = ApiResponse.success(null, 'Đặt lại mật khẩu thành công');
     response.send(res);
@@ -341,12 +492,20 @@ class AuthController {
       return next(new AppError('Token không hợp lệ hoặc đã hết hạn', 400));
     }
 
+    if (user.account.isEmailVerified) {
+      return next(new AppError('Email đã được xác thực trước đó', 400));
+    }
+
     // Verify email
     user.account.isEmailVerified = true;
     user.account.emailVerificationToken = undefined;
     user.account.emailVerificationExpires = undefined;
     
-    await user.save({ validateBeforeSave: false });
+    try {
+      await user.save({ validateBeforeSave: false });
+    } catch (error) {
+      return next(new AppError('Không thể xác thực email. Vui lòng thử lại.', 500));
+    }
 
     const response = ApiResponse.success(null, 'Xác thực email thành công');
     response.send(res);
@@ -360,6 +519,11 @@ class AuthController {
       return next(new AppError('Vui lòng nhập email', 400));
     }
 
+    // Validate email format
+    if (!AuthUtils.isValidEmail(email)) {
+      return next(new AppError('Email không hợp lệ', 400));
+    }
+
     const user = await User.findOne({ 'contactInfo.email': email.toLowerCase() });
     
     if (!user) {
@@ -370,13 +534,22 @@ class AuthController {
       return next(new AppError('Email đã được xác thực', 400));
     }
 
+    if (user.status !== 'active') {
+      return next(new AppError('Tài khoản không hoạt động', 401));
+    }
+
     // Generate new verification token
     const emailVerificationToken = AuthUtils.generateRandomToken();
     const hashedEmailToken = AuthUtils.hashToken(emailVerificationToken);
 
     user.account.emailVerificationToken = hashedEmailToken;
     user.account.emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-    await user.save({ validateBeforeSave: false });
+    
+    try {
+      await user.save({ validateBeforeSave: false });
+    } catch (error) {
+      return next(new AppError('Không thể gửi lại email xác thực. Vui lòng thử lại.', 500));
+    }
 
     // TODO: Send verification email
     console.log('New email verification token:', emailVerificationToken);
@@ -402,6 +575,10 @@ class AuthController {
       return next(new AppError('Mật khẩu mới không khớp', 400));
     }
 
+    if (currentPassword === newPassword) {
+      return next(new AppError('Mật khẩu mới phải khác mật khẩu hiện tại', 400));
+    }
+
     // Validate new password strength
     const passwordValidation = AuthUtils.validatePasswordStrength(newPassword);
     if (!passwordValidation.isValid) {
@@ -415,6 +592,10 @@ class AuthController {
       return next(new AppError('Người dùng không tồn tại', 404));
     }
 
+    if (user.status !== 'active') {
+      return next(new AppError('Tài khoản không hoạt động', 401));
+    }
+
     // Verify current password
     const isCurrentPasswordValid = await user.comparePassword(currentPassword);
     
@@ -424,7 +605,14 @@ class AuthController {
 
     // Update password
     user.account.password = newPassword; // Will be hashed by pre-save middleware
-    await user.save();
+    user.account.loginAttempts = undefined;
+    user.account.lockUntil = undefined;
+    
+    try {
+      await user.save();
+    } catch (error) {
+      return next(new AppError('Không thể đổi mật khẩu. Vui lòng thử lại.', 500));
+    }
 
     const response = ApiResponse.success(null, 'Đổi mật khẩu thành công');
     response.send(res);
@@ -432,88 +620,149 @@ class AuthController {
 
   // Get current user profile
   static getProfile = asyncHandler(async (req, res, next) => {
-    const user = await User.findById(req.user.userId)
-      .populate('bookingCount');
+    try {
+      const user = await User.findById(req.user.userId)
+        .populate('bookingCount');
 
-    if (!user) {
-      return next(new AppError('Người dùng không tồn tại', 404));
+      if (!user) {
+        return next(new AppError('Người dùng không tồn tại', 404));
+      }
+
+      if (user.status !== 'active') {
+        return next(new AppError('Tài khoản không hoạt động', 401));
+      }
+
+      // Remove sensitive data
+      const userResponse = { ...user.toObject() };
+      delete userResponse.account.password;
+      delete userResponse.account.emailVerificationToken;
+      delete userResponse.account.passwordResetToken;
+      delete userResponse.account.loginAttempts;
+      delete userResponse.account.lockUntil;
+
+      const response = ApiResponse.success(userResponse, 'Lấy thông tin người dùng thành công');
+      response.send(res);
+    } catch (error) {
+      console.error('Error in getProfile:', error);
+      return next(new AppError('Không thể lấy thông tin người dùng. Vui lòng thử lại.', 500));
     }
-
-    // Remove sensitive data
-    const userResponse = { ...user.toObject() };
-    delete userResponse.account.password;
-    delete userResponse.account.emailVerificationToken;
-    delete userResponse.account.passwordResetToken;
-
-    const response = ApiResponse.success(userResponse, 'Lấy thông tin người dùng thành công');
-    response.send(res);
   });
 
   // Update user profile (general info)
   static updateProfile = asyncHandler(async (req, res, next) => {
-    const userId = req.user.userId;
-    const allowedFields = [
-      'personalInfo.title',
-      'personalInfo.firstName', 
-      'personalInfo.lastName',
-      'personalInfo.dateOfBirth',
-      'personalInfo.gender',
-      'personalInfo.nationality',
-      'contactInfo.alternatePhone',
-      'contactInfo.address',
-      'preferences.language',
-      'preferences.currency',
-      'preferences.seatPreference',
-      'preferences.mealPreference',
-      'preferences.specialAssistance',
-      'preferences.marketingConsent'
-    ];
+    try {
+      const userId = req.user.userId;
+      const allowedFields = [
+        'personalInfo.title',
+        'personalInfo.firstName', 
+        'personalInfo.lastName',
+        'personalInfo.dateOfBirth',
+        'personalInfo.gender',
+        'personalInfo.nationality',
+        'contactInfo.alternatePhone',
+        'contactInfo.address',
+        'preferences.language',
+        'preferences.currency',
+        'preferences.seatPreference',
+        'preferences.mealPreference',
+        'preferences.specialAssistance',
+        'preferences.marketingConsent'
+      ];
 
-    // Extract only allowed fields from request body
-    const updates = {};
-    Object.keys(req.body).forEach(key => {
-      if (allowedFields.includes(key)) {
-        updates[key] = req.body[key];
-      }
-    });
+      // Extract only allowed fields from request body
+      const updates = {};
+      Object.keys(req.body).forEach(key => {
+        if (allowedFields.includes(key)) {
+          updates[key] = req.body[key];
+        }
+      });
 
-    // Validate date of birth if provided
-    if (updates['personalInfo.dateOfBirth']) {
-      const age = AuthUtils.calculateAge(updates['personalInfo.dateOfBirth']);
-      if (age < 18) {
-        return next(new AppError('Bạn phải từ 18 tuổi trở lên', 400));
+      // Check if there are any updates
+      if (Object.keys(updates).length === 0) {
+        return next(new AppError('Không có thông tin nào để cập nhật', 400));
       }
-      if (age > 120) {
-        return next(new AppError('Ngày sinh không hợp lệ', 400));
+
+      // Validate date of birth if provided
+      if (updates['personalInfo.dateOfBirth']) {
+        const birthDate = new Date(updates['personalInfo.dateOfBirth']);
+        if (isNaN(birthDate.getTime())) {
+          return next(new AppError('Ngày sinh không hợp lệ', 400));
+        }
+        
+        const age = AuthUtils.calculateAge(updates['personalInfo.dateOfBirth']);
+        if (age < 18) {
+          return next(new AppError('Bạn phải từ 18 tuổi trở lên', 400));
+        }
+        if (age > 120) {
+          return next(new AppError('Ngày sinh không hợp lệ', 400));
+        }
+        
+        updates['personalInfo.dateOfBirth'] = birthDate;
       }
+
+      // Validate gender if provided
+      if (updates['personalInfo.gender']) {
+        const validGenders = ['male', 'female', 'other'];
+        if (!validGenders.includes(updates['personalInfo.gender'])) {
+          return next(new AppError('Giới tính không hợp lệ', 400));
+        }
+      }
+
+      // Validate title if provided
+      if (updates['personalInfo.title']) {
+        const validTitles = ['Mr', 'Mrs', 'Ms', 'Dr'];
+        if (!validTitles.includes(updates['personalInfo.title'])) {
+          return next(new AppError('Danh xưng không hợp lệ. Chọn: Mr, Mrs, Ms, Dr', 400));
+        }
+      }
+
+      // Sanitize text inputs
+      const textFields = ['personalInfo.firstName', 'personalInfo.lastName'];
+      textFields.forEach(field => {
+        if (updates[field]) {
+          if (typeof updates[field] !== 'string' || updates[field].trim().length === 0) {
+            return next(new AppError(`${field === 'personalInfo.firstName' ? 'Tên' : 'Họ'} không hợp lệ`, 400));
+          }
+          updates[field] = AuthUtils.sanitizeInput(updates[field]);
+        }
+      });
+
+      let user;
+      try {
+        user = await User.findByIdAndUpdate(
+          userId, 
+          { $set: updates },
+          { new: true, runValidators: true }
+        );
+      } catch (updateError) {
+        console.error('Error updating profile:', updateError);
+        
+        if (updateError.name === 'ValidationError') {
+          const messages = Object.values(updateError.errors).map(err => err.message);
+          return next(new AppError(messages.join(', '), 400));
+        }
+        
+        return next(new AppError('Không thể cập nhật thông tin. Vui lòng thử lại.', 500));
+      }
+
+      if (!user) {
+        return next(new AppError('Người dùng không tồn tại', 404));
+      }
+
+      // Remove sensitive data
+      const userResponse = { ...user.toObject() };
+      delete userResponse.account.password;
+      delete userResponse.account.emailVerificationToken;
+      delete userResponse.account.passwordResetToken;
+      delete userResponse.account.loginAttempts;
+      delete userResponse.account.lockUntil;
+
+      const response = ApiResponse.success(userResponse, 'Cập nhật thông tin thành công');
+      response.send(res);
+    } catch (error) {
+      console.error('Unexpected error in updateProfile:', error);
+      return next(new AppError('Đã xảy ra lỗi không mong muốn. Vui lòng thử lại.', 500));
     }
-
-    // Sanitize text inputs
-    const textFields = ['personalInfo.firstName', 'personalInfo.lastName'];
-    textFields.forEach(field => {
-      if (updates[field]) {
-        updates[field] = AuthUtils.sanitizeInput(updates[field]);
-      }
-    });
-
-    const user = await User.findByIdAndUpdate(
-      userId, 
-      { $set: updates },
-      { new: true, runValidators: true }
-    );
-
-    if (!user) {
-      return next(new AppError('Người dùng không tồn tại', 404));
-    }
-
-    // Remove sensitive data
-    const userResponse = { ...user.toObject() };
-    delete userResponse.account.password;
-    delete userResponse.account.emailVerificationToken;
-    delete userResponse.account.passwordResetToken;
-
-    const response = ApiResponse.success(userResponse, 'Cập nhật thông tin thành công');
-    response.send(res);
   });
 
   // Update contact info (requires email verification for email changes)
@@ -521,9 +770,17 @@ class AuthController {
     const userId = req.user.userId;
     const { email, phone, alternatePhone, address } = req.body;
 
+    if (!email && !phone && alternatePhone === undefined && address === undefined) {
+      return next(new AppError('Vui lòng cung cấp ít nhất một thông tin để cập nhật', 400));
+    }
+
     const user = await User.findById(userId);
     if (!user) {
       return next(new AppError('Người dùng không tồn tại', 404));
+    }
+
+    if (user.status !== 'active') {
+      return next(new AppError('Tài khoản không hoạt động', 401));
     }
 
     const updates = {};
@@ -589,11 +846,20 @@ class AuthController {
       updates['contactInfo.address'] = address;
     }
 
-    const updatedUser = await User.findByIdAndUpdate(
-      userId,
-      { $set: updates },
-      { new: true, runValidators: true }
-    );
+    let updatedUser;
+    try {
+      updatedUser = await User.findByIdAndUpdate(
+        userId,
+        { $set: updates },
+        { new: true, runValidators: true }
+      );
+    } catch (error) {
+      return next(new AppError('Không thể cập nhật thông tin liên lạc. Vui lòng thử lại.', 500));
+    }
+
+    if (!updatedUser) {
+      return next(new AppError('Người dùng không tồn tại', 404));
+    }
 
     // Remove sensitive data
     const userResponse = { ...updatedUser.toObject() };
@@ -631,14 +897,30 @@ class AuthController {
       return next(new AppError('Ngày hết hạn phải sau ngày hiện tại', 400));
     }
 
+    // Validate issued date if provided
+    if (issuedDate) {
+      const issued = new Date(issuedDate);
+      const expiry = new Date(expiryDate);
+      if (issued >= expiry) {
+        return next(new AppError('Ngày cấp phải trước ngày hết hạn', 400));
+      }
+      if (issued > new Date()) {
+        return next(new AppError('Ngày cấp không được sau ngày hiện tại', 400));
+      }
+    }
+
     const user = await User.findById(userId);
     if (!user) {
       return next(new AppError('Người dùng không tồn tại', 404));
     }
 
+    if (user.status !== 'active') {
+      return next(new AppError('Tài khoản không hoạt động', 401));
+    }
+
     const documentData = {
       type,
-      number: number.toUpperCase(),
+      number: number.toUpperCase().trim(),
       issuedDate: issuedDate ? new Date(issuedDate) : undefined,
       expiryDate: new Date(expiryDate),
       issuedBy: issuedBy || '',
@@ -664,7 +946,11 @@ class AuthController {
       user.documents.push(documentData);
     }
 
-    await user.save();
+    try {
+      await user.save();
+    } catch (error) {
+      return next(new AppError('Không thể lưu giấy tờ. Vui lòng thử lại.', 500));
+    }
 
     const response = ApiResponse.success(
       user.documents,
@@ -678,9 +964,17 @@ class AuthController {
     const userId = req.user.userId;
     const { documentId } = req.params;
 
+    if (!documentId) {
+      return next(new AppError('ID giấy tờ là bắt buộc', 400));
+    }
+
     const user = await User.findById(userId);
     if (!user) {
       return next(new AppError('Người dùng không tồn tại', 404));
+    }
+
+    if (user.status !== 'active') {
+      return next(new AppError('Tài khoản không hoạt động', 401));
     }
 
     const docIndex = user.documents.findIndex(doc => doc._id.toString() === documentId);
@@ -689,7 +983,12 @@ class AuthController {
     }
 
     user.documents.splice(docIndex, 1);
-    await user.save();
+    
+    try {
+      await user.save();
+    } catch (error) {
+      return next(new AppError('Không thể xóa giấy tờ. Vui lòng thử lại.', 500));
+    }
 
     const response = ApiResponse.success(user.documents, 'Xóa giấy tờ thành công');
     response.send(res);
@@ -706,6 +1005,17 @@ class AuthController {
       specialAssistance,
       marketingConsent 
     } = req.body;
+
+    if (
+      language === undefined && 
+      currency === undefined && 
+      seatPreference === undefined && 
+      mealPreference === undefined && 
+      specialAssistance === undefined && 
+      marketingConsent === undefined
+    ) {
+      return next(new AppError('Vui lòng cung cấp ít nhất một tùy chọn để cập nhật', 400));
+    }
 
     const updates = {};
 
@@ -742,20 +1052,29 @@ class AuthController {
     }
 
     if (specialAssistance !== undefined) {
-      updates['preferences.specialAssistance'] = Array.isArray(specialAssistance) 
-        ? specialAssistance 
-        : [];
+      if (!Array.isArray(specialAssistance)) {
+        return next(new AppError('Yêu cầu hỗ trợ đặc biệt phải là một mảng', 400));
+      }
+      updates['preferences.specialAssistance'] = specialAssistance;
     }
 
     if (marketingConsent !== undefined) {
+      if (typeof marketingConsent !== 'boolean') {
+        return next(new AppError('Đồng ý tiếp thị phải là true hoặc false', 400));
+      }
       updates['preferences.marketingConsent'] = marketingConsent;
     }
 
-    const user = await User.findByIdAndUpdate(
-      userId,
-      { $set: updates },
-      { new: true, runValidators: true }
-    );
+    let user;
+    try {
+      user = await User.findByIdAndUpdate(
+        userId,
+        { $set: updates },
+        { new: true, runValidators: true }
+      );
+    } catch (error) {
+      return next(new AppError('Không thể cập nhật tùy chọn. Vui lòng thử lại.', 500));
+    }
 
     if (!user) {
       return next(new AppError('Người dùng không tồn tại', 404));
@@ -774,9 +1093,13 @@ class AuthController {
       return next(new AppError('Số thành viên là bắt buộc', 400));
     }
 
+    if (typeof membershipNumber !== 'string' || membershipNumber.trim().length === 0) {
+      return next(new AppError('Số thành viên không hợp lệ', 400));
+    }
+
     // Check if membership number already exists
     const existingUser = await User.findOne({
-      'frequentFlyerInfo.membershipNumber': membershipNumber,
+      'frequentFlyerInfo.membershipNumber': membershipNumber.trim(),
       _id: { $ne: userId }
     });
 
@@ -784,15 +1107,20 @@ class AuthController {
       return next(new AppError('Số thành viên đã được sử dụng', 400));
     }
 
-    const user = await User.findByIdAndUpdate(
-      userId,
-      { 
-        $set: { 
-          'frequentFlyerInfo.membershipNumber': membershipNumber 
-        }
-      },
-      { new: true, runValidators: true }
-    );
+    let user;
+    try {
+      user = await User.findByIdAndUpdate(
+        userId,
+        { 
+          $set: { 
+            'frequentFlyerInfo.membershipNumber': membershipNumber.trim()
+          }
+        },
+        { new: true, runValidators: true }
+      );
+    } catch (error) {
+      return next(new AppError('Không thể cập nhật thông tin hành khách thường xuyên. Vui lòng thử lại.', 500));
+    }
 
     if (!user) {
       return next(new AppError('Người dùng không tồn tại', 404));
@@ -819,6 +1147,14 @@ class AuthController {
       return next(new AppError('Người dùng không tồn tại', 404));
     }
 
+    if (user.status === 'inactive') {
+      return next(new AppError('Tài khoản đã bị vô hiệu hóa trước đó', 400));
+    }
+
+    if (user.status === 'deleted') {
+      return next(new AppError('Tài khoản đã bị xóa', 400));
+    }
+
     // Verify password
     const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
@@ -829,7 +1165,12 @@ class AuthController {
     user.status = 'inactive';
     user.metadata.deactivationReason = reason || 'User requested';
     user.metadata.deactivationDate = new Date();
-    await user.save();
+    
+    try {
+      await user.save();
+    } catch (error) {
+      return next(new AppError('Không thể vô hiệu hóa tài khoản. Vui lòng thử lại.', 500));
+    }
 
     const response = ApiResponse.success(null, 'Tài khoản đã được vô hiệu hóa');
     response.send(res);
@@ -849,6 +1190,10 @@ class AuthController {
       return next(new AppError('Người dùng không tồn tại', 404));
     }
 
+    if (user.status === 'deleted') {
+      return next(new AppError('Tài khoản đã bị xóa trước đó', 400));
+    }
+
     // Verify password
     const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
@@ -857,10 +1202,15 @@ class AuthController {
 
     // Check for active bookings
     const Booking = require('../models/Booking');
-    const activeBookings = await Booking.countDocuments({
-      user: userId,
-      status: { $in: ['confirmed', 'checked_in'] }
-    });
+    let activeBookings;
+    try {
+      activeBookings = await Booking.countDocuments({
+        user: userId,
+        status: { $in: ['confirmed', 'checked_in'] }
+      });
+    } catch (error) {
+      return next(new AppError('Không thể kiểm tra trạng thái booking. Vui lòng thử lại.', 500));
+    }
 
     if (activeBookings > 0) {
       return next(new AppError('Không thể xóa tài khoản vì còn có booking đang hoạt động', 400));
@@ -876,7 +1226,11 @@ class AuthController {
     user.contactInfo.phone = '';
     user.documents = [];
     
-    await user.save();
+    try {
+      await user.save();
+    } catch (error) {
+      return next(new AppError('Không thể xóa tài khoản. Vui lòng thử lại.', 500));
+    }
 
     const response = ApiResponse.success(null, 'Tài khoản đã được xóa');
     response.send(res);
@@ -892,37 +1246,65 @@ class AuthController {
 
     const user = await User.findById(userId);
     if (!user) {
+      // Clean up uploaded file if user not found
+      if (req.file && req.file.path) {
+        fileUploadService.deleteFile(req.file.path);
+      }
       return next(new AppError('Người dùng không tồn tại', 404));
     }
 
-    // Delete old avatar if exists
-    if (user.personalInfo.avatar) {
-      const oldAvatarPath = path.join(__dirname, '../uploads/avatars', user.personalInfo.avatar);
-      fileUploadService.deleteFile(oldAvatarPath);
+    if (user.status !== 'active') {
+      // Clean up uploaded file
+      if (req.file && req.file.path) {
+        fileUploadService.deleteFile(req.file.path);
+      }
+      return next(new AppError('Tài khoản không hoạt động', 401));
     }
 
-    // Create thumbnails
-    const originalPath = req.file.path;
-    const thumbnails = await fileUploadService.createAvatarThumbnails(originalPath, req.file.filename);
+    try {
+      // Delete old avatar if exists
+      if (user.personalInfo.avatar) {
+        const oldAvatarPath = path.join(__dirname, '../uploads/avatars', user.personalInfo.avatar);
+        fileUploadService.deleteFile(oldAvatarPath);
+      }
 
-    // Update user avatar
-    user.personalInfo.avatar = req.file.filename;
-    user.personalInfo.avatarThumbnails = thumbnails;
-    await user.save();
+      // Delete old thumbnails if exist
+      if (user.personalInfo.avatarThumbnails) {
+        Object.values(user.personalInfo.avatarThumbnails).forEach(filename => {
+          const thumbnailPath = path.join(__dirname, '../uploads/avatars', filename);
+          fileUploadService.deleteFile(thumbnailPath);
+        });
+      }
 
-    const avatarUrl = fileUploadService.getFileUrl(req.file.filename, 'avatars');
-    const thumbnailUrls = {};
-    
-    Object.entries(thumbnails).forEach(([size, filename]) => {
-      thumbnailUrls[size] = fileUploadService.getFileUrl(filename, 'avatars');
-    });
+      // Create thumbnails
+      const originalPath = req.file.path;
+      const thumbnails = await fileUploadService.createAvatarThumbnails(originalPath, req.file.filename);
 
-    const response = ApiResponse.success({
-      avatar: avatarUrl,
-      thumbnails: thumbnailUrls
-    }, 'Upload ảnh đại diện thành công');
-    
-    response.send(res);
+      // Update user avatar
+      user.personalInfo.avatar = req.file.filename;
+      user.personalInfo.avatarThumbnails = thumbnails;
+      await user.save();
+
+      const avatarUrl = fileUploadService.getFileUrl(req.file.filename, 'avatars');
+      const thumbnailUrls = {};
+      
+      Object.entries(thumbnails).forEach(([size, filename]) => {
+        thumbnailUrls[size] = fileUploadService.getFileUrl(filename, 'avatars');
+      });
+
+      const response = ApiResponse.success({
+        avatar: avatarUrl,
+        thumbnails: thumbnailUrls
+      }, 'Upload ảnh đại diện thành công');
+      
+      response.send(res);
+    } catch (error) {
+      // Clean up uploaded file on error
+      if (req.file && req.file.path) {
+        fileUploadService.deleteFile(req.file.path);
+      }
+      return next(new AppError('Không thể upload ảnh đại diện. Vui lòng thử lại.', 500));
+    }
   });
 
   // Delete avatar
@@ -934,29 +1316,37 @@ class AuthController {
       return next(new AppError('Người dùng không tồn tại', 404));
     }
 
+    if (user.status !== 'active') {
+      return next(new AppError('Tài khoản không hoạt động', 401));
+    }
+
     if (!user.personalInfo.avatar) {
       return next(new AppError('Không có ảnh đại diện để xóa', 400));
     }
 
-    // Delete avatar file
-    const avatarPath = path.join(__dirname, '../uploads/avatars', user.personalInfo.avatar);
-    fileUploadService.deleteFile(avatarPath);
+    try {
+      // Delete avatar file
+      const avatarPath = path.join(__dirname, '../uploads/avatars', user.personalInfo.avatar);
+      fileUploadService.deleteFile(avatarPath);
 
-    // Delete thumbnails
-    if (user.personalInfo.avatarThumbnails) {
-      Object.values(user.personalInfo.avatarThumbnails).forEach(filename => {
-        const thumbnailPath = path.join(__dirname, '../uploads/avatars', filename);
-        fileUploadService.deleteFile(thumbnailPath);
-      });
+      // Delete thumbnails
+      if (user.personalInfo.avatarThumbnails) {
+        Object.values(user.personalInfo.avatarThumbnails).forEach(filename => {
+          const thumbnailPath = path.join(__dirname, '../uploads/avatars', filename);
+          fileUploadService.deleteFile(thumbnailPath);
+        });
+      }
+
+      // Update user
+      user.personalInfo.avatar = undefined;
+      user.personalInfo.avatarThumbnails = undefined;
+      await user.save();
+
+      const response = ApiResponse.success(null, 'Xóa ảnh đại diện thành công');
+      response.send(res);
+    } catch (error) {
+      return next(new AppError('Không thể xóa ảnh đại diện. Vui lòng thử lại.', 500));
     }
-
-    // Update user
-    user.personalInfo.avatar = undefined;
-    user.personalInfo.avatarThumbnails = undefined;
-    await user.save();
-
-    const response = ApiResponse.success(null, 'Xóa ảnh đại diện thành công');
-    response.send(res);
   });
 
   // Upload document file
@@ -964,42 +1354,74 @@ class AuthController {
     const userId = req.user.userId;
     const { documentId } = req.params;
 
+    if (!documentId) {
+      // Clean up uploaded file if documentId missing
+      if (req.file && req.file.path) {
+        fileUploadService.deleteFile(req.file.path);
+      }
+      return next(new AppError('ID giấy tờ là bắt buộc', 400));
+    }
+
     if (!req.file) {
       return next(new AppError('Vui lòng chọn file', 400));
     }
 
     const user = await User.findById(userId);
     if (!user) {
+      // Clean up uploaded file if user not found
+      if (req.file && req.file.path) {
+        fileUploadService.deleteFile(req.file.path);
+      }
       return next(new AppError('Người dùng không tồn tại', 404));
+    }
+
+    if (user.status !== 'active') {
+      // Clean up uploaded file
+      if (req.file && req.file.path) {
+        fileUploadService.deleteFile(req.file.path);
+      }
+      return next(new AppError('Tài khoản không hoạt động', 401));
     }
 
     const docIndex = user.documents.findIndex(doc => doc._id.toString() === documentId);
     if (docIndex === -1) {
+      // Clean up uploaded file if document not found
+      if (req.file && req.file.path) {
+        fileUploadService.deleteFile(req.file.path);
+      }
       return next(new AppError('Giấy tờ không tồn tại', 404));
     }
 
-    // Delete old file if exists
-    if (user.documents[docIndex].filePath) {
-      const oldFilePath = path.join(__dirname, '../uploads/documents', user.documents[docIndex].filePath);
-      fileUploadService.deleteFile(oldFilePath);
+    try {
+      // Delete old file if exists
+      if (user.documents[docIndex].filePath) {
+        const oldFilePath = path.join(__dirname, '../uploads/documents', user.documents[docIndex].filePath);
+        fileUploadService.deleteFile(oldFilePath);
+      }
+
+      // Update document with file info
+      user.documents[docIndex].filePath = req.file.filename;
+      user.documents[docIndex].fileOriginalName = req.file.originalname;
+      user.documents[docIndex].fileSize = req.file.size;
+      user.documents[docIndex].uploadedAt = new Date();
+      
+      await user.save();
+
+      const fileUrl = fileUploadService.getFileUrl(req.file.filename, 'documents');
+
+      const response = ApiResponse.success({
+        document: user.documents[docIndex],
+        fileUrl
+      }, 'Upload file giấy tờ thành công');
+      
+      response.send(res);
+    } catch (error) {
+      // Clean up uploaded file on error
+      if (req.file && req.file.path) {
+        fileUploadService.deleteFile(req.file.path);
+      }
+      return next(new AppError('Không thể upload file giấy tờ. Vui lòng thử lại.', 500));
     }
-
-    // Update document with file info
-    user.documents[docIndex].filePath = req.file.filename;
-    user.documents[docIndex].fileOriginalName = req.file.originalname;
-    user.documents[docIndex].fileSize = req.file.size;
-    user.documents[docIndex].uploadedAt = new Date();
-    
-    await user.save();
-
-    const fileUrl = fileUploadService.getFileUrl(req.file.filename, 'documents');
-
-    const response = ApiResponse.success({
-      document: user.documents[docIndex],
-      fileUrl
-    }, 'Upload file giấy tờ thành công');
-    
-    response.send(res);
   });
 
   // Get user statistics
@@ -1014,23 +1436,31 @@ class AuthController {
 
     // Get booking statistics
     const Booking = require('../models/Booking');
-    const bookingStats = await Booking.aggregate([
-      { $match: { user: userId } },
-      {
-        $group: {
-          _id: '$status',
-          count: { $sum: 1 },
-          totalAmount: { $sum: '$totalAmount' }
-        }
-      }
-    ]);
+    let bookingStats = [];
+    let recentBookings = [];
 
-    // Get recent bookings
-    const recentBookings = await Booking.find({ user: userId })
-      .sort({ createdAt: -1 })
-      .limit(5)
-      .populate('flight', 'flightNumber route.departure.airport route.arrival.airport')
-      .select('bookingReference status totalAmount createdAt');
+    try {
+      bookingStats = await Booking.aggregate([
+        { $match: { user: userId } },
+        {
+          $group: {
+            _id: '$status',
+            count: { $sum: 1 },
+            totalAmount: { $sum: '$totalAmount' }
+          }
+        }
+      ]);
+
+      // Get recent bookings
+      recentBookings = await Booking.find({ user: userId })
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .populate('flight', 'flightNumber route.departure.airport route.arrival.airport')
+        .select('bookingReference status totalAmount createdAt');
+    } catch (error) {
+      // Continue even if booking stats fail - show user info at least
+      console.error('Error fetching booking stats:', error);
+    }
 
     // Calculate profile completeness
     let completeness = 0;
