@@ -5,8 +5,8 @@ const seatService = {
   // Get seats for a specific flight
   getSeatsByFlight: async (flightId) => {
     try {
-      const response = await api.get(`/seats/flight/${flightId}`);
-      return response.data.seats;
+      const response = await api.get(`/seats/flight/${flightId}/map`);
+      return response.data.data?.seats || response.data.seats;
     } catch (error) {
       console.error('Error fetching seats:', error);
       throw error;

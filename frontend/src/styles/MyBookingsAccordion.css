@@ -1,0 +1,400 @@
+/* Booking Card - Compact & Expandable Design */
+.booking-card {
+  background: white;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+  margin-bottom: 16px;
+}
+
+.booking-card:hover {
+  box-shadow: 0 4px 16px rgba(220, 38, 38, 0.15);
+}
+
+.booking-card.expanded {
+  box-shadow: 0 6px 20px rgba(220, 38, 38, 0.2);
+}
+
+/* Compact Header - Always Visible */
+.booking-card-compact {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.booking-card-compact:hover {
+  background: #fafafa;
+}
+
+.compact-left {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.booking-ref-compact {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ref-label {
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.ref-value {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--vietjet-red);
+  letter-spacing: 0.5px;
+}
+
+.route-compact {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.airport-code-small {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.plane-small {
+  color: #9ca3af;
+  transform: rotate(90deg);
+}
+
+.flight-time-compact {
+  font-size: 13px;
+  color: #6b7280;
+  font-weight: 500;
+  margin-left: 8px;
+}
+
+.compact-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.status-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.price-compact {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--vietjet-red);
+  white-space: nowrap;
+}
+
+.expand-btn {
+  background: none;
+  border: none;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.expand-btn:hover {
+  color: var(--vietjet-red);
+  transform: scale(1.1);
+}
+
+/* Expanded Content */
+.booking-card-expanded {
+  border-top: 1px solid #e5e7eb;
+  padding: 20px;
+  background: #fafafa;
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    max-height: 2000px;
+  }
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--vietjet-red);
+}
+
+/* Flight Details Section */
+.flight-details-section {
+  margin-bottom: 20px;
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+}
+
+.flight-route {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+
+.route-point {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+}
+
+.airport-code-large {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--vietjet-red);
+}
+
+.airport-name-small {
+  font-size: 11px;
+  color: #6b7280;
+  text-align: center;
+  max-width: 150px;
+}
+
+.time-large {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1f2937;
+  margin-top: 4px;
+}
+
+.date-small {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.terminal-badge {
+  font-size: 10px;
+  background: #f3f4f6;
+  padding: 4px 10px;
+  border-radius: 12px;
+  color: #6b7280;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.route-middle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  max-width: 150px;
+}
+
+.flight-line {
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(to right, var(--vietjet-red), var(--vietjet-orange));
+  position: relative;
+}
+
+.flight-line::after {
+  content: '✈';
+  position: absolute;
+  right: -10px;
+  top: 50%;
+  transform: translateY(-50%) rotate(90deg);
+  font-size: 16px;
+  color: var(--vietjet-red);
+}
+
+.flight-info-middle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.flight-number-badge {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--vietjet-red);
+  background: #fff1f0;
+  padding: 4px 12px;
+  border-radius: 12px;
+}
+
+.duration-text {
+  font-size: 11px;
+  color: #6b7280;
+  font-weight: 600;
+}
+
+/* Passengers Section */
+.passengers-section {
+  margin-bottom: 20px;
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+}
+
+.passengers-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.passenger-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  background: #f9fafb;
+  border-radius: 8px;
+  border-left: 3px solid var(--vietjet-red);
+}
+
+.passenger-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.passenger-details {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+}
+
+.passenger-type {
+  color: #6b7280;
+  background: #f3f4f6;
+  padding: 4px 10px;
+  border-radius: 10px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.seat-number {
+  color: var(--vietjet-red);
+  font-weight: 700;
+}
+
+/* Payment Section */
+.payment-section {
+  margin-bottom: 20px;
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+}
+
+.payment-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.payment-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.payment-item .label {
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.payment-item .value {
+  font-size: 14px;
+  color: #1f2937;
+  font-weight: 600;
+}
+
+.payment-item .value.price-highlight {
+  font-size: 18px;
+  color: var(--vietjet-red);
+  font-weight: 700;
+}
+
+.payment-item .value.status-paid {
+  color: #059669;
+}
+
+.payment-item .value.status-pending {
+  color: #f59e0b;
+}
+
+.payment-item .value.status-refunded {
+  color: #6b7280;
+}
+
+/* Action Buttons */
+.booking-actions-expanded {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .compact-right {
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+  }
+
+  .flight-route {
+    flex-direction: column;
+    gap: 30px;
+  }
+
+  .route-middle {
+    max-width: 100%;
+    transform: rotate(90deg);
+    margin: 20px 0;
+  }
+
+  .payment-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .booking-actions-expanded {
+    flex-direction: column;
+  }
+
+  .booking-actions-expanded .btn-action {
+    width: 100%;
+    justify-content: center;
+  }
+}

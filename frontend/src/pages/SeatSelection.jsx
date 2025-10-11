@@ -1,40 +1,60 @@
 import { Check, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import Footer from '../components/Footer';
 import Header from '../components/Header';
 import seatService from '../services/seatService';
 import '../styles/SeatSelection.css';
 
 const SeatSelection = () => {
-  const [searchParams] = useSearchParams();
+  const location = useLocation();
   const navigate = useNavigate();
   
   const [seats, setSeats] = useState([]);
   const [selectedSeats, setSelectedSeats] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [flightId, setFlightId] = useState('');
+  const [flight, setFlight] = useState(null);
+  const [outboundFlight, setOutboundFlight] = useState(null);
+  const [returnFlight, setReturnFlight] = useState(null);
+  const [searchParams, setSearchParams] = useState({});
   const [passengerCount, setPassengerCount] = useState(1);
 
   useEffect(() => {
     const fetchSeats = async () => {
       try {
-        const flightIdParam = searchParams.get('flight');
-        const passengers = parseInt(searchParams.get('passengers') || '1');
-        
-        if (!flightIdParam) {
+        // Get flight data from navigation state
+        if (!location.state) {
           setError('Không tìm thấy thông tin chuyến bay');
           setLoading(false);
           return;
         }
 
-        setFlightId(flightIdParam);
+        const { flight: singleFlight, outboundFlight: outbound, returnFlight: returnFlt, searchParams: params } = location.state;
+        
+        setSearchParams(params || {});
+        const passengers = parseInt(params?.passengers) || 1;
         setPassengerCount(passengers);
 
-        // Fetch seat map from API
-        const seatData = await seatService.getSeatsByFlight(flightIdParam);
-        setSeats(seatData || generateDemoSeats());
+        // Handle round-trip
+        if (outbound && returnFlt) {
+          setOutboundFlight(outbound);
+          setReturnFlight(returnFlt);
+          // For now, just load seats for outbound flight
+          // TODO: Handle return flight seats separately
+          const seatData = await seatService.getSeatsByFlight(outbound._id);
+          setSeats(seatData || generateDemoSeats());
+        } 
+        // Handle one-way
+        else if (singleFlight) {
+          setFlight(singleFlight);
+          const seatData = await seatService.getSeatsByFlight(singleFlight._id);
+          setSeats(seatData || generateDemoSeats());
+        } else {
+          setError('Không tìm thấy thông tin chuyến bay');
+          setLoading(false);
+          return;
+        }
         
       } catch (err) {
         console.error('Error fetching seats:', err);
@@ -46,7 +66,7 @@ const SeatSelection = () => {
     };
 
     fetchSeats();
-  }, [searchParams]);
+  }, [location]);
 
   // Generate demo seat layout for demonstration
   const generateDemoSeats = () => {
@@ -98,13 +118,48 @@ const SeatSelection = () => {
       return;
     }
 
+    const isRoundTrip = !!(outboundFlight && returnFlight);
+    
     // Navigate to booking page with selected seats
-    const seatNumbers = selectedSeats.map(s => s.seatNumber).join(',');
-    navigate(`/booking?flight=${flightId}&seats=${seatNumbers}`);
+    if (isRoundTrip) {
+      navigate('/booking', { 
+        state: { 
+          outboundFlight,
+          returnFlight,
+          searchParams,
+          selectedSeats: selectedSeats.map(s => s.seatNumber)
+        } 
+      });
+    } else {
+      navigate('/booking', { 
+        state: { 
+          flight,
+          searchParams,
+          selectedSeats: selectedSeats.map(s => s.seatNumber)
+        } 
+      });
+    }
   };
 
   const handleSkip = () => {
-    navigate(`/booking?flight=${flightId}`);
+    const isRoundTrip = !!(outboundFlight && returnFlight);
+    
+    if (isRoundTrip) {
+      navigate('/booking', { 
+        state: { 
+          outboundFlight,
+          returnFlight,
+          searchParams
+        } 
+      });
+    } else {
+      navigate('/booking', { 
+        state: { 
+          flight,
+          searchParams
+        } 
+      });
+    }
   };
 
   const getTotalPrice = () => {

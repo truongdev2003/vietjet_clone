@@ -16,26 +16,48 @@ const PaymentConfirmation = () => {
   useEffect(() => {
     const verifyPayment = async () => {
       try {
-        // Get payment info from URL params
-        const transactionId = searchParams.get('transactionId');
-        const bookingId = searchParams.get('bookingId');
-        const paymentStatus = searchParams.get('status');
+        // Check if coming from navigation state (direct booking without payment)
+        if (location.state?.booking) {
+          setBookingData(location.state.booking);
+          setStatus(location.state.status || 'success');
+          return;
+        }
 
-        if (!transactionId || !bookingId) {
+        // Otherwise, check for payment gateway callback
+        const transactionId = searchParams.get('transactionId') || searchParams.get('orderId');
+        const paymentStatus = searchParams.get('status') || searchParams.get('resultCode');
+        
+        // Get booking info from sessionStorage (saved before redirect to payment)
+        const pendingBookingId = sessionStorage.getItem('pendingBookingId');
+        const pendingBookingRef = sessionStorage.getItem('pendingBookingRef');
+
+        if (!transactionId && !pendingBookingId) {
           setStatus('failed');
-          setError('Thông tin thanh toán không hợp lệ');
+          setError('Không tìm thấy thông tin thanh toán');
           return;
         }
 
         // Verify payment with backend
+        // TODO: Call API to verify payment status
         // const response = await paymentService.verifyPayment(transactionId);
         
-        // For now, use the status from URL
-        if (paymentStatus === 'success') {
+        // For now, check status from URL params
+        // MoMo: resultCode=0 means success
+        // VNPay: vnp_ResponseCode=00 means success
+        const isSuccess = paymentStatus === 'success' 
+          || paymentStatus === '0' 
+          || paymentStatus === '00'
+          || searchParams.get('vnp_ResponseCode') === '00';
+        
+        if (isSuccess && pendingBookingId) {
           // Fetch booking details
-          const booking = await bookingService.getBookingById(bookingId);
+          const booking = await bookingService.getBookingById(pendingBookingId);
           setBookingData(booking);
           setStatus('success');
+          
+          // Clear sessionStorage
+          sessionStorage.removeItem('pendingBookingId');
+          sessionStorage.removeItem('pendingBookingRef');
         } else {
           setStatus('failed');
           setError('Thanh toán không thành công. Vui lòng thử lại.');
@@ -48,7 +70,7 @@ const PaymentConfirmation = () => {
     };
 
     verifyPayment();
-  }, [searchParams]);
+  }, [searchParams, location.state]);
 
   const handleDownloadReceipt = () => {
     // TODO: Implement receipt download
@@ -64,9 +86,10 @@ const PaymentConfirmation = () => {
   };
 
   const handleRetryPayment = () => {
-    const bookingId = searchParams.get('bookingId');
-    if (bookingId) {
-      navigate(`/booking?id=${bookingId}`);
+    // Try to get booking ref from failed payment
+    const pendingBookingRef = sessionStorage.getItem('pendingBookingRef');
+    if (pendingBookingRef) {
+      navigate(`/booking-lookup?ref=${pendingBookingRef}`);
     } else {
       navigate('/');
     }

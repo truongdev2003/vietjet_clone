@@ -308,7 +308,16 @@
   font-size: 28px;
   font-weight: 700;
   color: var(--vietjet-red);
+  margin-bottom: 4px;
+}
+
+.airport-name {
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 500;
   margin-bottom: 8px;
+  max-width: 200px;
+  text-align: center;
 }
 
 .time {
@@ -322,13 +331,24 @@
   font-size: 13px;
   color: #6b7280;
   font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.terminal {
+  font-size: 11px;
+  color: #9ca3af;
+  font-weight: 600;
+  background: #f3f4f6;
+  padding: 4px 10px;
+  border-radius: 12px;
+  display: inline-block;
 }
 
 .route-divider {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .plane-icon-wrapper {
@@ -348,9 +368,16 @@
   font-size: 13px;
   color: #6b7280;
   font-weight: 700;
-  background: #f9fafb;
-  padding: 6px 14px;
-  border-radius: 20px;
+  letter-spacing: 0.5px;
+}
+
+.duration {
+  font-size: 11px;
+  color: #9ca3af;
+  font-weight: 600;
+  background: #f3f4f6;
+  padding: 4px 10px;
+  border-radius: 12px;
 }
 
 /* Booking Details */
@@ -523,5 +550,91 @@
   .btn-action {
     width: 100%;
     justify-content: center;
+  }
+}
+
+/* Pagination */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  margin-top: 40px;
+  padding: 20px;
+}
+
+.pagination-btn {
+  padding: 10px 20px;
+  background: white;
+  border: 2px solid var(--vietjet-red);
+  color: var(--vietjet-red);
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background: var(--vietjet-red);
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(230, 0, 0, 0.3);
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  border-color: #ccc;
+  color: #ccc;
+}
+
+.pagination-pages {
+  display: flex;
+  gap: 8px;
+}
+
+.pagination-page {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  color: #333;
+}
+
+.pagination-page:hover {
+  border-color: var(--vietjet-red);
+  color: var(--vietjet-red);
+  transform: translateY(-2px);
+}
+
+.pagination-page.active {
+  background: var(--vietjet-red);
+  border-color: var(--vietjet-red);
+  color: white;
+  box-shadow: 0 4px 12px rgba(230, 0, 0, 0.3);
+}
+
+@media (max-width: 768px) {
+  .pagination {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .pagination-btn {
+    padding: 8px 16px;
+    font-size: 14px;
+  }
+
+  .pagination-page {
+    width: 36px;
+    height: 36px;
+    font-size: 14px;
   }
 }

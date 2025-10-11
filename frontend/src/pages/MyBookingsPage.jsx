@@ -1,20 +1,28 @@
-import axios from 'axios';
-import { AlertCircle, Calendar, CheckCircle, Clock, Download, FileText, Filter, Plane, XCircle } from 'lucide-react';
+import { AlertCircle, Calendar, CheckCircle, ChevronDown, ChevronUp, Clock, Download, FileText, Filter, Plane, User, XCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Footer from '../components/Footer';
 import Header from '../components/Header';
 import { useAuth } from '../context/AuthContext';
+import bookingService from '../services/bookingService';
 import '../styles/MyBookings.css';
+import '../styles/MyBookingsAccordion.css';
 
 const MyBookingsPage = () => {
-  const { user, token } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [bookings, setBookings] = useState([]);
   const [filteredBookings, setFilteredBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filter, setFilter] = useState('all'); // all, upcoming, completed, cancelled
+  const [expandedBookings, setExpandedBookings] = useState(new Set());
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalItems: 0,
+    itemsPerPage: 10
+  });
 
   useEffect(() => {
     if (!user) {
@@ -22,7 +30,7 @@ const MyBookingsPage = () => {
       return;
     }
     fetchMyBookings();
-  }, [user, navigate]);
+  }, [user, navigate, pagination.currentPage]);
 
   useEffect(() => {
     filterBookings();
@@ -31,12 +39,16 @@ const MyBookingsPage = () => {
   const fetchMyBookings = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('http://localhost:5000/api/bookings/my-bookings', {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
+      const response = await bookingService.getMyBookings({
+        page: pagination.currentPage,
+        limit: pagination.itemsPerPage
       });
-      setBookings(response.data || []);
+      console.log('Fetched bookings:', response);
+      // Response structure: { success, message, data: { bookings, pagination } }
+      setBookings(response.data?.bookings || []);
+      if (response.data?.pagination) {
+        setPagination(response.data.pagination);
+      }
     } catch (error) {
       console.error('Fetch bookings error:', error);
       setError('Không thể tải danh sách đặt vé');
@@ -51,16 +63,21 @@ const MyBookingsPage = () => {
 
     switch (filter) {
       case 'upcoming':
-        filtered = bookings.filter(b => 
-          new Date(b.flight?.departure?.time) > now && 
-          b.status !== 'cancelled'
-        );
+        filtered = bookings.filter(b => {
+          const firstFlight = b.flights?.[0]?.flight;
+          const departureTime = firstFlight?.route?.departure?.time;
+          return departureTime && 
+                 new Date(departureTime) > now && 
+                 b.status !== 'cancelled';
+        });
         break;
       case 'completed':
-        filtered = bookings.filter(b => 
-          new Date(b.flight?.departure?.time) <= now || 
-          b.status === 'checked_in'
-        );
+        filtered = bookings.filter(b => {
+          const firstFlight = b.flights?.[0]?.flight;
+          const departureTime = firstFlight?.route?.departure?.time;
+          return (departureTime && new Date(departureTime) <= now) || 
+                 b.status === 'checked_in';
+        });
         break;
       case 'cancelled':
         filtered = bookings.filter(b => b.status === 'cancelled');
@@ -82,15 +99,7 @@ const MyBookingsPage = () => {
     }
 
     try {
-      await axios.put(
-        `http://localhost:5000/api/bookings/${bookingReference}/cancel`,
-        {},
-        {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        }
-      );
+      await bookingService.cancelBooking(bookingReference);
       fetchMyBookings();
     } catch (error) {
       console.error('Cancel error:', error);
@@ -140,18 +149,36 @@ const MyBookingsPage = () => {
   };
 
   const canCheckIn = (booking) => {
-    if (!booking.flight?.departure?.time) return false;
-    const departureTime = new Date(booking.flight.departure.time);
+    const firstFlight = booking.flights?.[0]?.flight;
+    const departureTime = firstFlight?.route?.departure?.time;
+    if (!departureTime) return false;
+    
+    const departureDate = new Date(departureTime);
     const now = new Date();
-    const hoursDiff = (departureTime - now) / (1000 * 60 * 60);
+    const hoursDiff = (departureDate - now) / (1000 * 60 * 60);
     return booking.status === 'confirmed' && hoursDiff > 0 && hoursDiff <= 24;
   };
 
   const canCancel = (booking) => {
-    if (!booking.flight?.departure?.time) return false;
-    const departureTime = new Date(booking.flight.departure.time);
+    const firstFlight = booking.flights?.[0]?.flight;
+    const departureTime = firstFlight?.route?.departure?.time;
+    if (!departureTime) return false;
+    
+    const departureDate = new Date(departureTime);
     const now = new Date();
-    return booking.status === 'confirmed' && departureTime > now;
+    return booking.status === 'confirmed' && departureDate > now;
+  };
+
+  const toggleBooking = (bookingId) => {
+    setExpandedBookings(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(bookingId)) {
+        newSet.delete(bookingId);
+      } else {
+        newSet.add(bookingId);
+      }
+      return newSet;
+    });
   };
 
   return (
@@ -187,19 +214,21 @@ const MyBookingsPage = () => {
                 className={`filter-btn ${filter === 'upcoming' ? 'active' : ''}`}
                 onClick={() => setFilter('upcoming')}
               >
-                Sắp bay ({bookings.filter(b => 
-                  new Date(b.flight?.departure?.time) > new Date() && 
-                  b.status !== 'cancelled'
-                ).length})
+                Sắp bay ({bookings.filter(b => {
+                  const firstFlight = b.flights?.[0]?.flight;
+                  const departureTime = firstFlight?.route?.departure?.time;
+                  return departureTime && new Date(departureTime) > new Date() && b.status !== 'cancelled';
+                }).length})
               </button>
               <button
                 className={`filter-btn ${filter === 'completed' ? 'active' : ''}`}
                 onClick={() => setFilter('completed')}
               >
-                Đã bay ({bookings.filter(b => 
-                  new Date(b.flight?.departure?.time) <= new Date() || 
-                  b.status === 'checked_in'
-                ).length})
+                Đã bay ({bookings.filter(b => {
+                  const firstFlight = b.flights?.[0]?.flight;
+                  const departureTime = firstFlight?.route?.departure?.time;
+                  return (departureTime && new Date(departureTime) <= new Date()) || b.status === 'checked_in';
+                }).length})
               </button>
               <button
                 className={`filter-btn ${filter === 'cancelled' ? 'active' : ''}`}
@@ -246,113 +275,249 @@ const MyBookingsPage = () => {
               {filteredBookings.map((booking) => {
                 const statusInfo = getStatusInfo(booking.status);
                 const StatusIcon = statusInfo.icon;
+                const firstFlight = booking.flights?.[0]?.flight;
+                const isExpanded = expandedBookings.has(booking._id);
 
                 return (
-                  <div key={booking._id} className="booking-card">
-                    {/* Card Header */}
-                    <div className="booking-card-header">
-                      <div className="booking-reference">
-                        <span className="reference-label">Mã đặt vé</span>
-                        <span className="reference-value">{booking.bookingReference}</span>
-                      </div>
-                      <div className={`booking-status ${statusInfo.color}`}>
-                        <StatusIcon size={16} />
-                        <span>{statusInfo.text}</span>
-                      </div>
-                    </div>
-
-                    {/* Flight Info */}
-                    <div className="flight-info">
-                      <div className="route-section">
-                        <div className="airport-info">
-                          <div className="airport-code">
-                            {booking.flight?.departure?.airport || 'N/A'}
-                          </div>
-                          <div className="time">{formatTime(booking.flight?.departure?.time)}</div>
-                          <div className="date">{formatDate(booking.flight?.departure?.time)}</div>
+                  <div key={booking._id} className={`booking-card ${isExpanded ? 'expanded' : 'collapsed'}`}>
+                    {/* Compact Header - Always visible */}
+                    <div className="booking-card-compact" onClick={() => toggleBooking(booking._id)}>
+                      <div className="compact-left">
+                        <div className="booking-ref-compact">
+                          <span className="ref-label">Mã vé:</span>
+                          <span className="ref-value">{booking.bookingReference}</span>
                         </div>
-
-                        <div className="route-divider">
-                          <div className="plane-icon-wrapper">
-                            <Plane size={24} />
-                          </div>
-                          <div className="flight-number">
-                            {booking.flight?.flightNumber || 'N/A'}
-                          </div>
-                        </div>
-
-                        <div className="airport-info">
-                          <div className="airport-code">
-                            {booking.flight?.arrival?.airport || 'N/A'}
-                          </div>
-                          <div className="time">{formatTime(booking.flight?.arrival?.time)}</div>
-                          <div className="date">{formatDate(booking.flight?.arrival?.time)}</div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Booking Details */}
-                    <div className="booking-details">
-                      <div className="detail-row">
-                        <div className="detail-item">
-                          <Calendar size={16} />
-                          <span className="detail-label">Ngày đặt:</span>
-                          <span className="detail-value">{formatDate(booking.bookingDate)}</span>
-                        </div>
-                        <div className="detail-item">
-                          <FileText size={16} />
-                          <span className="detail-label">Hành khách:</span>
-                          <span className="detail-value">{booking.passengers?.length || 0} người</span>
-                        </div>
-                      </div>
-                      <div className="detail-row">
-                        <div className="detail-item">
-                          <span className="detail-label">Tổng tiền:</span>
-                          <span className="detail-value price">{formatPrice(booking.totalAmount)}</span>
-                        </div>
-                        <div className="detail-item">
-                          <span className="detail-label">Thanh toán:</span>
-                          <span className={`payment-status ${booking.paymentStatus}`}>
-                            {booking.paymentStatus === 'paid' ? 'Đã thanh toán' : 
-                             booking.paymentStatus === 'refunded' ? 'Đã hoàn tiền' : 'Chưa thanh toán'}
+                        <div className="route-compact">
+                          <span className="airport-code-small">
+                            {firstFlight?.route?.departure?.airport?.code?.iata}
+                          </span>
+                          <Plane size={14} className="plane-small" />
+                          <span className="airport-code-small">
+                            {firstFlight?.route?.arrival?.airport?.code?.iata}
+                          </span>
+                          <span className="flight-time-compact">
+                            {formatDate(firstFlight?.route?.departure?.time)}
                           </span>
                         </div>
                       </div>
+                      
+                      <div className="compact-right">
+                        <div className={`status-badge ${statusInfo.color}`}>
+                          <StatusIcon size={14} />
+                          <span>{statusInfo.text}</span>
+                        </div>
+                        <div className="price-compact">
+                          {formatPrice(booking.payment?.totalAmount || 0)}
+                        </div>
+                        <button className="expand-btn">
+                          {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                        </button>
+                      </div>
                     </div>
 
-                    {/* Action Buttons */}
-                    <div className="booking-actions">
-                      <button 
-                        className="btn-action btn-download"
-                        onClick={() => handleDownload(booking.bookingReference)}
-                      >
-                        <Download size={16} />
-                        Tải vé
-                      </button>
+                    {/* Expanded Content */}
+                    {isExpanded && (
+                      <div className="booking-card-expanded">
+                        {/* Flight Details */}
+                        <div className="flight-details-section">
+                          <h4 className="section-title">
+                            <Plane size={16} />
+                            Thông tin chuyến bay
+                          </h4>
+                          <div className="flight-route">
+                            <div className="route-point">
+                              <div className="airport-code-large">
+                                {firstFlight?.route?.departure?.airport?.code?.iata}
+                              </div>
+                              <div className="airport-name-small">
+                                {firstFlight?.route?.departure?.airport?.name?.vi}
+                              </div>
+                              <div className="time-large">
+                                {formatTime(firstFlight?.route?.departure?.time)}
+                              </div>
+                              <div className="date-small">
+                                {formatDate(firstFlight?.route?.departure?.time)}
+                              </div>
+                              {firstFlight?.route?.departure?.terminal && (
+                                <div className="terminal-badge">
+                                  Terminal {firstFlight.route.departure.terminal}
+                                </div>
+                              )}
+                            </div>
 
-                      {canCheckIn(booking) && (
-                        <button 
-                          className="btn-action btn-checkin"
-                          onClick={() => handleCheckIn(booking.bookingReference)}
-                        >
-                          <CheckCircle size={16} />
-                          Check-in
-                        </button>
-                      )}
+                            <div className="route-middle">
+                              <div className="flight-line"></div>
+                              <div className="flight-info-middle">
+                                <div className="flight-number-badge">
+                                  {firstFlight?.flightNumber}
+                                </div>
+                                {firstFlight?.route?.duration?.scheduled && (
+                                  <div className="duration-text">
+                                    {Math.floor(firstFlight.route.duration.scheduled / 60)}h{' '}
+                                    {firstFlight.route.duration.scheduled % 60}m
+                                  </div>
+                                )}
+                              </div>
+                            </div>
 
-                      {canCancel(booking) && (
-                        <button 
-                          className="btn-action btn-cancel"
-                          onClick={() => handleCancel(booking.bookingReference)}
-                        >
-                          <XCircle size={16} />
-                          Hủy vé
-                        </button>
-                      )}
-                    </div>
+                            <div className="route-point">
+                              <div className="airport-code-large">
+                                {firstFlight?.route?.arrival?.airport?.code?.iata}
+                              </div>
+                              <div className="airport-name-small">
+                                {firstFlight?.route?.arrival?.airport?.name?.vi}
+                              </div>
+                              <div className="time-large">
+                                {formatTime(firstFlight?.route?.arrival?.time)}
+                              </div>
+                              <div className="date-small">
+                                {formatDate(firstFlight?.route?.arrival?.time)}
+                              </div>
+                              {firstFlight?.route?.arrival?.terminal && (
+                                <div className="terminal-badge">
+                                  Terminal {firstFlight.route.arrival.terminal}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Passengers */}
+                        <div className="passengers-section">
+                          <h4 className="section-title">
+                            <User size={16} />
+                            Hành khách ({booking.flights?.[0]?.passengers?.length || 0})
+                          </h4>
+                          <div className="passengers-list">
+                            {booking.flights?.[0]?.passengers?.map((passenger, idx) => (
+                              <div key={passenger._id || idx} className="passenger-item">
+                                <div className="passenger-name">
+                                  {passenger.title} {passenger.firstName} {passenger.lastName}
+                                </div>
+                                <div className="passenger-details">
+                                  <span className="passenger-type">{passenger.passengerType}</span>
+                                  {passenger.ticket?.seatNumber && (
+                                    <span className="seat-number">Ghế: {passenger.ticket.seatNumber}</span>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Payment Details */}
+                        <div className="payment-section">
+                          <h4 className="section-title">
+                            <Calendar size={16} />
+                            Thông tin thanh toán
+                          </h4>
+                          <div className="payment-grid">
+                            <div className="payment-item">
+                              <span className="label">Ngày đặt:</span>
+                              <span className="value">{formatDate(booking.createdAt)}</span>
+                            </div>
+                            <div className="payment-item">
+                              <span className="label">Phương thức:</span>
+                              <span className="value">
+                                {booking.payment?.method === 'momo' ? 'MoMo' :
+                                 booking.payment?.method === 'bank_transfer' ? 'Chuyển khoản' :
+                                 booking.payment?.method === 'credit_card' ? 'Thẻ tín dụng' : 'N/A'}
+                              </span>
+                            </div>
+                            <div className="payment-item">
+                              <span className="label">Trạng thái:</span>
+                              <span className={`value status-${booking.payment?.status}`}>
+                                {booking.payment?.status === 'paid' ? 'Đã thanh toán' :
+                                 booking.payment?.status === 'pending' ? 'Chờ thanh toán' :
+                                 booking.payment?.status === 'refunded' ? 'Đã hoàn tiền' : 'N/A'}
+                              </span>
+                            </div>
+                            <div className="payment-item">
+                              <span className="label">Tổng tiền:</span>
+                              <span className="value price-highlight">
+                                {formatPrice(booking.payment?.totalAmount || 0)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="booking-actions-expanded">
+                          <button
+                            className="btn-action btn-download"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDownload(booking.bookingReference);
+                            }}
+                          >
+                            <Download size={16} />
+                            Tải vé
+                          </button>
+
+                          {canCheckIn(booking) && (
+                            <button
+                              className="btn-action btn-checkin"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleCheckIn(booking.bookingReference);
+                              }}
+                            >
+                              <CheckCircle size={16} />
+                              Check-in
+                            </button>
+                          )}
+
+                          {canCancel(booking) && (
+                            <button
+                              className="btn-action btn-cancel"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleCancel(booking.bookingReference);
+                              }}
+                            >
+                              <XCircle size={16} />
+                              Hủy vé
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {/* Pagination */}
+          {!loading && !error && filteredBookings.length > 0 && pagination.totalPages > 1 && (
+            <div className="pagination">
+              <button
+                className="pagination-btn"
+                disabled={!pagination.hasPrevPage}
+                onClick={() => setPagination(prev => ({ ...prev, currentPage: prev.currentPage - 1 }))}
+              >
+                « Trước
+              </button>
+              
+              <div className="pagination-pages">
+                {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map(page => (
+                  <button
+                    key={page}
+                    className={`pagination-page ${page === pagination.currentPage ? 'active' : ''}`}
+                    onClick={() => setPagination(prev => ({ ...prev, currentPage: page }))}
+                  >
+                    {page}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                className="pagination-btn"
+                disabled={!pagination.hasNextPage}
+                onClick={() => setPagination(prev => ({ ...prev, currentPage: prev.currentPage + 1 }))}
+              >
+                Sau »
+              </button>
             </div>
           )}
         </div>

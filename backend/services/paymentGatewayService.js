@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const axios = require('axios');
+const { v4: uuidv4 } = require('uuid');
 const Payment = require('../models/Payment');
 const Booking = require('../models/Booking');
 const { AppError } = require('../utils/errorHandler');
@@ -322,11 +323,14 @@ class PaymentGatewayService {
         throw new AppError('Booking not found', 404);
       }
 
-      // Generate unique IDs
-      const orderId = `VJ_${bookingId}_${Date.now()}`;
+      // Generate unique IDs with UUID to avoid collisions
+      const orderId = `VJ_${bookingId}_${Date.now()}_${uuidv4().slice(0, 8)}`;
       const requestId = orderId;
       
       const momoConfig = this.gateways.momo;
+      
+      // Đảm bảo endpoint đúng cho MoMo test
+      const momoEndpoint = momoConfig.endpoint || 'https://test-payment.momo.vn/v2/gateway/api/create';
 
       // Build raw signature string theo MoMo spec
       const rawSignature = `accessKey=${momoConfig.accessKey}&amount=${amount}&extraData=&ipnUrl=${momoConfig.notifyUrl}&orderId=${orderId}&orderInfo=${orderInfo}&partnerCode=${momoConfig.partnerCode}&redirectUrl=${momoConfig.returnUrl}&requestId=${requestId}&requestType=payWithMethod`;
@@ -356,7 +360,7 @@ class PaymentGatewayService {
       console.log('🔐 MoMo Request:', {
         orderId,
         amount,
-        endpoint: momoConfig.endpoint
+        endpoint: momoEndpoint
       });
 
       // Tạo payment record theo đúng Payment schema
@@ -383,7 +387,7 @@ class PaymentGatewayService {
       });
 
       // Gọi MoMo API
-      const response = await axios.post(momoConfig.endpoint, requestBody, {
+      const response = await axios.post(momoEndpoint, requestBody, {
         headers: {
           'Content-Type': 'application/json'
         }

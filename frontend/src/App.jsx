@@ -59,6 +59,7 @@ function AppContent() {
             <Route path="/faq" element={<FAQPage />} />
             <Route path="/terms" element={<TermsOfService />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />
+            <Route path="/payment-confirmation" element={<PaymentConfirmation />} />
             <Route path="/payment/confirmation" element={<PaymentConfirmation />} />
             <Route path="/payment/:result" element={<PaymentResultPage />} />
             <Route path="/booking/success/:bookingId" element={<BookingSuccess />} />

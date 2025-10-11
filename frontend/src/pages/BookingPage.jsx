@@ -15,6 +15,7 @@ const BookingPage = () => {
   const [outboundFlight, setOutboundFlight] = useState(null);
   const [returnFlight, setReturnFlight] = useState(null);
   const [searchParams, setSearchParams] = useState({});
+  const [selectedSeats, setSelectedSeats] = useState([]); // Ghế đã chọn từ SeatSelection
   const [passengers, setPassengers] = useState([]);
   const [contactInfo, setContactInfo] = useState({
     email: '',
@@ -41,11 +42,21 @@ const BookingPage = () => {
         setOutboundFlight(location.state.outboundFlight);
         setReturnFlight(location.state.returnFlight);
         setSearchParams(location.state.searchParams);
+        
+        // Get selected seats if available
+        if (location.state.selectedSeats) {
+          setSelectedSeats(location.state.selectedSeats);
+        }
       } 
       // Handle one-way booking
       else if (location.state.flight) {
         setFlight(location.state.flight);
         setSearchParams(location.state.searchParams);
+        
+        // Get selected seats if available
+        if (location.state.selectedSeats) {
+          setSelectedSeats(location.state.selectedSeats);
+        }
       } else {
         navigate('/');
         return;
@@ -266,12 +277,22 @@ const BookingPage = () => {
       
       // Kiểm tra có payment URL không (MoMo/VNPay/ZaloPay)
       if (response.data.data?.paymentInfo?.paymentUrl) {
+        // Lưu booking ID vào sessionStorage để dùng sau khi payment callback
+        sessionStorage.setItem('pendingBookingId', response.data.data.booking._id);
+        sessionStorage.setItem('pendingBookingRef', response.data.data.booking.bookingReference);
+        
         // Redirect tới trang thanh toán
         window.location.href = response.data.data.paymentInfo.paymentUrl;
         return;
       }
       
-      setBookingSuccess(response.data.data.booking);
+      // Nếu không có payment URL (thanh toán sau), chuyển thẳng đến confirmation
+      navigate('/payment-confirmation', {
+        state: {
+          booking: response.data.data.booking,
+          status: 'success'
+        }
+      });
       
     } catch (error) {
       console.error('Booking error:', error);
@@ -403,6 +424,11 @@ const BookingPage = () => {
                       <span>•</span>
                       <span>{formatTime(outboundFlight.route?.departure?.time)} - {formatTime(outboundFlight.route?.arrival?.time)}</span>
                     </div>
+                    {selectedSeats && selectedSeats.length > 0 && (
+                      <div className="text-sm text-green-600 mt-2 font-medium">
+                        ✓ Đã chọn ghế: {selectedSeats.join(', ')}
+                      </div>
+                    )}
                   </div>
                   <div className="text-right">
                     <div className="text-2xl font-bold text-primary-500">
@@ -446,6 +472,11 @@ const BookingPage = () => {
                   <div className="text-gray-500 text-sm">
                     {flight.flightNumber} • {formatTime(flight.route?.departure?.time)} - {formatTime(flight.route?.arrival?.time)}
                   </div>
+                  {selectedSeats && selectedSeats.length > 0 && (
+                    <div className="text-sm text-green-600 mt-2 font-medium">
+                      ✓ Đã chọn ghế: {selectedSeats.join(', ')}
+                    </div>
+                  )}
                 </div>
                 <div className="text-right">
                   <div className="text-2xl font-bold text-primary-500">

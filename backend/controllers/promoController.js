@@ -1,7 +1,7 @@
 const PromoCode = require('../models/PromoCode');
 const User = require('../models/User');
 const Booking = require('../models/Booking');
-const { successResponse, errorResponse } = require('../utils/apiResponse');
+const ApiResponse = require('../utils/apiResponse');
 const mongoose = require('mongoose');
 
 /**
@@ -125,11 +125,13 @@ exports.getPublicPromoCodes = async (req, res) => {
     .select('code description type value maxDiscount minAmount validUntil')
     .sort({ createdAt: -1 });
 
-    return successResponse(res, { promoCodes }, 'Lấy danh sách mã khuyến mãi thành công');
+    const response = ApiResponse.success({ promoCodes }, 'Lấy danh sách mã khuyến mãi thành công');
+    return response.send(res);
 
   } catch (error) {
     console.error('Get public promo codes error:', error);
-    return errorResponse(res, 'Lỗi khi lấy danh sách mã khuyến mãi', 500);
+    const response = ApiResponse.error('Lỗi khi lấy danh sách mã khuyến mãi', 500);
+    return response.send(res);
   }
 };
 

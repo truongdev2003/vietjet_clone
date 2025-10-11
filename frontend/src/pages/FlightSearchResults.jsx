@@ -16,6 +16,8 @@ const FlightSearchResults = () => {
   const [selectedFlightId, setSelectedFlightId] = useState(null);
   const [selectedOutboundFlight, setSelectedOutboundFlight] = useState(null);
   const [bookingStep, setBookingStep] = useState('outbound'); // 'outbound' or 'return'
+  const [showSeatSelectionModal, setShowSeatSelectionModal] = useState(false);
+  const [tempSelectedFlight, setTempSelectedFlight] = useState(null);
 
   useEffect(() => {
     const urlParams = new URLSearchParams(location.search);
@@ -109,6 +111,7 @@ const FlightSearchResults = () => {
     console.log('Search params:', searchParams);
     
     setSelectedFlightId(flight._id);
+    setTempSelectedFlight(flight);
     
     // For round-trip, handle outbound and return flight selection
     if (searchParams.tripType === 'round-trip') {
@@ -116,28 +119,66 @@ const FlightSearchResults = () => {
         // Selected outbound flight, now show return flights
         setSelectedOutboundFlight(flight);
         setBookingStep('return');
-        setSelectedFlightId(null); // Reset for return flight selection
+        setSelectedFlightId(null);
+        setTempSelectedFlight(null);
         // Scroll to top to show return flight selection
         window.scrollTo({ top: 0, behavior: 'smooth' });
       } else {
-        // Selected return flight, navigate to booking page with both flights
-        navigate('/booking', { 
-          state: { 
-            outboundFlight: selectedOutboundFlight,
-            returnFlight: flight,
-            searchParams 
-          } 
-        });
+        // Selected return flight, show modal to choose seat or skip
+        setShowSeatSelectionModal(true);
       }
     } else {
-      // One-way trip, navigate directly to booking page
-      navigate('/booking', { 
+      // One-way trip, show modal to choose seat or skip
+      setShowSeatSelectionModal(true);
+    }
+  };
+  
+  const handleProceedWithSeats = () => {
+    const isRoundTrip = searchParams.tripType === 'round-trip';
+    
+    if (isRoundTrip && bookingStep === 'return') {
+      // Round trip - go to seat selection with both flights
+      navigate('/seat-selection', { 
         state: { 
-          flight,
+          outboundFlight: selectedOutboundFlight,
+          returnFlight: tempSelectedFlight,
+          searchParams 
+        } 
+      });
+    } else {
+      // One-way - go to seat selection with single flight
+      navigate('/seat-selection', { 
+        state: { 
+          flight: tempSelectedFlight,
           searchParams 
         } 
       });
     }
+    setShowSeatSelectionModal(false);
+  };
+  
+  const handleSkipSeats = () => {
+    const isRoundTrip = searchParams.tripType === 'round-trip';
+    
+    if (isRoundTrip && bookingStep === 'return') {
+      // Round trip - go to booking with both flights
+      navigate('/booking', { 
+        state: { 
+          outboundFlight: selectedOutboundFlight,
+          returnFlight: tempSelectedFlight,
+          searchParams 
+        } 
+      });
+    } else {
+      // One-way - go to booking with single flight
+      navigate('/booking', { 
+        state: { 
+          flight: tempSelectedFlight,
+          searchParams 
+        } 
+      });
+    }
+    setShowSeatSelectionModal(false);
   };
   
   const handleBackToOutbound = () => {
@@ -326,6 +367,35 @@ const FlightSearchResults = () => {
         )}
       </div>
       </div>
+      
+      {/* Seat Selection Modal */}
+      {showSeatSelectionModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl animate-fade-in">
+            <h3 className="text-2xl font-bold text-gray-800 mb-4">Chọn ghế ngồi</h3>
+            <p className="text-gray-600 mb-6">
+              Bạn có muốn chọn ghế ngồi trước khi tiếp tục đặt vé không?
+            </p>
+            
+            <div className="space-y-3">
+              <button
+                onClick={handleProceedWithSeats}
+                className="w-full bg-gradient-to-br from-[#EE0033] to-[#CC0000] text-white px-6 py-4 rounded-lg text-base font-semibold hover:shadow-lg transition-all duration-300"
+              >
+                Chọn ghế ngồi
+              </button>
+              
+              <button
+                onClick={handleSkipSeats}
+                className="w-full bg-white border-2 border-gray-300 text-gray-700 px-6 py-4 rounded-lg text-base font-semibold hover:bg-gray-50 transition-all duration-300"
+              >
+                Bỏ qua (Chọn sau)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
       <Footer />
     </>
   );

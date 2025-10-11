@@ -86,9 +86,15 @@ class EmailService {
   async sendBookingConfirmation(user, booking, flightDetails = []) {
     // Lấy thông tin passenger đầu tiên
     const firstPassenger = booking.passengers && booking.passengers[0];
-    const passengerName = firstPassenger 
-      ? `${firstPassenger.firstName} ${firstPassenger.lastName}`
-      : `${booking.contact.firstName} ${booking.contact.lastName}`;
+    let passengerName = 'Quý khách';
+    
+    if (firstPassenger && firstPassenger.firstName && firstPassenger.lastName) {
+      passengerName = `${firstPassenger.firstName} ${firstPassenger.lastName}`;
+    } else if (booking.contact && booking.contact.firstName && booking.contact.lastName) {
+      passengerName = `${booking.contact.firstName} ${booking.contact.lastName}`;
+    } else if (booking.contactInfo && booking.contactInfo.email) {
+      passengerName = booking.contactInfo.email.split('@')[0];
+    }
 
     // Xử lý flight details
     const flightsInfo = flightDetails.map(detail => ({

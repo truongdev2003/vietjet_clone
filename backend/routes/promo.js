@@ -10,11 +10,10 @@ const { csrfProtection } = require("../middleware/csrf");
 /**
  * @route   POST /api/promo/validate
  * @desc    Validate promo code
- * @access  Public
+ * @access  Public (No CSRF - read-only validation)
  */
 router.post(
   "/validate",
-  csrfProtection,
   promoValidator.validatePromoCodeRequest,
   promoController.validatePromoCode
 );

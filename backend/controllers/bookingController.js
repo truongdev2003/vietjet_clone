@@ -513,9 +513,18 @@ class BookingController {
 
     const [bookings, total] = await Promise.all([
       Booking.find(query)
-        .populate('flights.flight', 'flightNumber route status')
-        .populate('flights.flight.route.departure.airport', 'code name')
-        .populate('flights.flight.route.arrival.airport', 'code name')
+        .populate({
+          path: 'flights.flight',
+          select: 'flightNumber status route',
+          populate: {
+            path: 'route',
+            select: 'departure arrival',
+            populate: [
+              { path: 'departure.airport', select: 'code name city' },
+              { path: 'arrival.airport', select: 'code name city' }
+            ]
+          }
+        })
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(parseInt(limit)),
