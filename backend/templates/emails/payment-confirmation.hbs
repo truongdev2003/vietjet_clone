@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Xác nhận thanh toán</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            background-color: #ffffff;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 3px solid #dc2626;
+            padding-bottom: 20px;
+        }
+        .logo {
+            color: #dc2626;
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .success-badge {
+            background-color: #10b981;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 25px;
+            display: inline-block;
+            margin: 20px 0;
+            font-weight: bold;
+        }
+        .payment-info {
+            background-color: #f9fafb;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .info-row:last-child {
+            border-bottom: none;
+        }
+        .label {
+            font-weight: 600;
+            color: #6b7280;
+        }
+        .value {
+            font-weight: bold;
+            color: #111827;
+        }
+        .total-amount {
+            background-color: #dcfce7;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .total-label {
+            font-size: 14px;
+            color: #065f46;
+            margin-bottom: 10px;
+        }
+        .total-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #059669;
+        }
+        .flight-details {
+            background-color: #eff6ff;
+            padding: 15px;
+            border-left: 4px solid #3b82f6;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 30px;
+            background-color: #dc2626;
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 10px 5px;
+            font-weight: bold;
+        }
+        .btn:hover {
+            background-color: #b91c1c;
+        }
+        .btn-secondary {
+            background-color: #6b7280;
+        }
+        .btn-secondary:hover {
+            background-color: #4b5563;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+            color: #6b7280;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">✈️ VietJet Air</div>
+            <div class="success-badge">✓ Thanh toán thành công</div>
+        </div>
+
+        <p style="font-size: 18px;">Xin chào <strong>{{passengerName}}</strong>,</p>
+        <p>Cảm ơn quý khách đã thanh toán. Chúng tôi đã nhận được thanh toán của quý khách và booking của quý khách đã được xác nhận.</p>
+
+        <div class="payment-info">
+            <h3 style="margin-top: 0; color: #111827;">Thông tin thanh toán</h3>
+            <div class="info-row">
+                <span class="label">Mã giao dịch:</span>
+                <span class="value">{{transactionId}}</span>
+            </div>
+            <div class="info-row">
+                <span class="label">Mã booking:</span>
+                <span class="value">{{bookingReference}}</span>
+            </div>
+            <div class="info-row">
+                <span class="label">Phương thức:</span>
+                <span class="value">{{paymentMethod}}</span>
+            </div>
+            <div class="info-row">
+                <span class="label">Thời gian:</span>
+                <span class="value">{{paymentTime}}</span>
+            </div>
+        </div>
+
+        <div class="total-amount">
+            <div class="total-label">Tổng số tiền đã thanh toán</div>
+            <div class="total-value">{{totalAmount}} {{currency}}</div>
+        </div>
+
+        {{#if flights}}
+        <h3 style="color: #111827;">Chi tiết chuyến bay</h3>
+        {{#each flights}}
+        <div class="flight-details">
+            <div style="font-weight: bold; margin-bottom: 10px;">
+                ✈️ {{this.flightNumber}} - {{this.route}}
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 14px; color: #4b5563;">
+                <span>🗓️ {{this.departureDate}}</span>
+                <span>🕐 {{this.departureTime}} - {{this.arrivalTime}}</span>
+            </div>
+            <div style="margin-top: 5px; font-size: 14px; color: #6b7280;">
+                Hạng: <strong>{{this.seatClass}}</strong>
+            </div>
+        </div>
+        {{/each}}
+        {{/if}}
+
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="{{checkInUrl}}" class="btn">Check-in online</a>
+            <a href="{{manageBookingUrl}}" class="btn btn-secondary">Quản lý booking</a>
+        </div>
+
+        <div style="background-color: #fef3c7; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <h4 style="margin-top: 0; color: #92400e;">📌 Lưu ý quan trọng:</h4>
+            <ul style="margin: 5px 0; padding-left: 20px;">
+                <li>Vui lòng check-in online trước 24 giờ khởi hành</li>
+                <li>Có mặt tại sân bay trước giờ khởi hành ít nhất 2 tiếng</li>
+                <li>Mang theo giấy tờ tùy thân hợp lệ</li>
+                <li>Lưu email này để xuất trình khi cần thiết</li>
+            </ul>
+        </div>
+
+        <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <p style="margin: 0; font-size: 14px; color: #4b5563;">
+                💡 <strong>Mẹo:</strong> Tải app VietJet để quản lý booking dễ dàng và nhận thông báo cập nhật chuyến bay.
+            </p>
+        </div>
+
+        <div class="footer">
+            <p><strong>VietJet Air</strong></p>
+            <p>Chuyến bay an toàn - Giá vé hấp dẫn</p>
+            <p style="font-size: 12px; color: #9ca3af;">
+                Nếu có bất kỳ thắc mắc nào, vui lòng liên hệ hotline: <strong>1900 1886</strong><br>
+                Email này được gửi tự động, vui lòng không trả lời.
+            </p>
+        </div>
+    </div>
+</body>
+</html>

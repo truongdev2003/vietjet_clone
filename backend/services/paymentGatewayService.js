@@ -3,6 +3,7 @@ const axios = require('axios');
 const { v4: uuidv4 } = require('uuid');
 const Payment = require('../models/Payment');
 const Booking = require('../models/Booking');
+const PaymentCode = require('../models/PaymentCode');
 const { AppError } = require('../utils/errorHandler');
 const config = require('../config/config');
 
@@ -171,6 +172,18 @@ class PaymentGatewayService {
           'payment.transactionId': params.vnp_TransactionNo || params.vnp_TxnRef,
           'payment.paymentGateway': 'vnpay'
         });
+
+        // Ghi nhận payment code usage nếu có
+        const booking = payment.booking;
+        if (booking.metadata?.pendingPaymentCode) {
+          try {
+            const { paymentCodeId, userId, discountAmount } = booking.metadata.pendingPaymentCode;
+            await PaymentCode.recordUsage(paymentCodeId, userId, booking._id, discountAmount);
+            console.log('✅ Payment code usage recorded:', paymentCodeId);
+          } catch (error) {
+            console.error('❌ Failed to record payment code usage:', error);
+          }
+        }
       }
 
       return {
@@ -320,6 +333,18 @@ class PaymentGatewayService {
           'payment.transactionId': callbackData.zp_trans_id || callbackData.app_trans_id,
           'payment.paymentGateway': 'zalopay'
         });
+
+        // Ghi nhận payment code usage nếu có
+        const booking = payment.booking;
+        if (booking.metadata?.pendingPaymentCode) {
+          try {
+            const { paymentCodeId, userId, discountAmount } = booking.metadata.pendingPaymentCode;
+            await PaymentCode.recordUsage(paymentCodeId, userId, booking._id, discountAmount);
+            console.log('✅ Payment code usage recorded:', paymentCodeId);
+          } catch (error) {
+            console.error('❌ Failed to record payment code usage:', error);
+          }
+        }
       }
 
       return {
@@ -512,6 +537,19 @@ class PaymentGatewayService {
         });
 
         console.log('✈️ Booking confirmed:', payment.booking._id);
+
+        // Ghi nhận payment code usage nếu có
+        const booking = payment.booking;
+        if (booking.metadata?.pendingPaymentCode) {
+          try {
+            const { paymentCodeId, userId, discountAmount } = booking.metadata.pendingPaymentCode;
+            await PaymentCode.recordUsage(paymentCodeId, userId, booking._id, discountAmount);
+            console.log('✅ Payment code usage recorded:', paymentCodeId);
+          } catch (error) {
+            console.error('❌ Failed to record payment code usage:', error);
+            // Không throw error để không ảnh hưởng đến flow chính
+          }
+        }
 
         // TODO: Gửi email xác nhận thanh toán
         // TODO: Cập nhật inventory từ 'held' sang 'sold'

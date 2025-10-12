@@ -10,7 +10,7 @@ const CheckInPage = () => {
   const [step, setStep] = useState(1); // 1: Search, 2: Select Seat, 3: Boarding Pass
   const [searchData, setSearchData] = useState({
     bookingReference: '',
-    lastName: ''
+    documentNumber: '' // CCCD/Passport thay vì lastName
   });
   const [booking, setBooking] = useState(null);
   const [selectedSeats, setSelectedSeats] = useState({});
@@ -24,23 +24,17 @@ const CheckInPage = () => {
     setError('');
 
     try {
-      // Get booking by code using bookingService
+      // Get booking by code using bookingService with documentNumber verification
       const bookingResponse = await bookingService.getBookingByCode(
-        searchData.bookingReference
+        searchData.bookingReference,
+        null, // email
+        null, // lastName
+        searchData.documentNumber // CCCD/Passport for verification
       );
       
       const bookingData = bookingResponse.data || bookingResponse;
       
-      // Verify last name
-      const hasMatchingPassenger = bookingData.passengers.some(
-        p => p.lastName.toLowerCase() === searchData.lastName.toLowerCase()
-      );
-
-      if (!hasMatchingPassenger) {
-        setError('Họ không khớp với thông tin đặt vé');
-        setBooking(null);
-        return;
-      }
+      // Backend already verified lastName, no need to check again
 
       // Check if already checked in
       if (bookingData.status === 'checked_in') {
@@ -206,13 +200,13 @@ const CheckInPage = () => {
                 <div className="form-group">
                   <label>
                     <User size={18} />
-                    Họ của hành khách
+                    Số CCCD/Passport
                   </label>
                   <input
                     type="text"
-                    value={searchData.lastName}
-                    onChange={(e) => setSearchData({ ...searchData, lastName: e.target.value })}
-                    placeholder="VD: Nguyen"
+                    value={searchData.documentNumber}
+                    onChange={(e) => setSearchData({ ...searchData, documentNumber: e.target.value })}
+                    placeholder="VD: 001234567890"
                     required
                     className="input-field"
                   />

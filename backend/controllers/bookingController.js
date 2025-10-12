@@ -2,8 +2,10 @@ const Booking = require('../models/Booking');
 const Flight = require('../models/Flight');
 const User = require('../models/User');
 const Payment = require('../models/Payment');
+const PaymentCode = require('../models/PaymentCode');
 const Inventory = require('../models/Inventory');
 const Fare = require('../models/Fare');
+const pdfService = require('../services/pdfService');
 const { asyncHandler, AppError } = require('../utils/errorHandler');
 const ApiResponse = require('../utils/apiResponse');
 const crypto = require('crypto');
@@ -17,7 +19,8 @@ class BookingController {
       contactInfo,
       services = {},
       paymentMethod,
-      promoCode
+      promoCode,
+      paymentCode
     } = req.body;
 
     // Validate required fields
@@ -198,9 +201,45 @@ class BookingController {
 
     // Apply promo code discount (if any)
     let discountAmount = 0;
+    let promoCodeDiscount = 0;
+    let paymentCodeDiscount = 0;
+    let usedPaymentCode = null;
+    
     if (promoCode) {
       // TODO: Implement promo code validation and discount calculation
       // For now, just a placeholder
+    }
+
+    // Apply payment code discount (if any)
+    if (paymentCode) {
+      try {
+        const paymentCodeObj = await PaymentCode.findValidCode(paymentCode);
+        
+        // Kiểm tra user có thể sử dụng mã không
+        if (user) {
+          const canUse = paymentCodeObj.canUserUse(user._id);
+          if (!canUse.valid) {
+            return next(new AppError(canUse.message, 400));
+          }
+        }
+
+        // Kiểm tra số tiền tối thiểu
+        if (totalAmount < paymentCodeObj.minAmount) {
+          return next(new AppError(
+            `Số tiền thanh toán tối thiểu để áp dụng mã này là ${paymentCodeObj.minAmount.toLocaleString('vi-VN')} VND`,
+            400
+          ));
+        }
+
+        // Tính discount
+        paymentCodeDiscount = paymentCodeObj.calculateDiscount(totalAmount);
+        discountAmount += paymentCodeDiscount;
+        usedPaymentCode = paymentCodeObj;
+
+        console.log(`Payment code ${paymentCode} applied: -${paymentCodeDiscount} VND`);
+      } catch (error) {
+        return next(new AppError(error.message, 400));
+      }
     }
 
     const finalAmount = totalAmount - discountAmount;
@@ -259,7 +298,13 @@ class BookingController {
         bookingSource: 'web',
         userAgent: req.headers['user-agent'],
         ipAddress: req.ip,
-        isGuestBooking: isGuestBooking
+        isGuestBooking: isGuestBooking,
+        // Lưu thông tin payment code nếu có
+        paymentCode: usedPaymentCode ? {
+          code: usedPaymentCode.code,
+          name: usedPaymentCode.name,
+          discountAmount: paymentCodeDiscount
+        } : null
       }
     });
 
@@ -293,9 +338,18 @@ class BookingController {
       const emailService = require('../services/emailService');
       
       await emailService.sendBookingConfirmation(user, booking, flightDetails);
+      
+      // Cập nhật flag email đã gửi
+      booking.notifications.bookingConfirmation.sent = true;
+      booking.notifications.bookingConfirmation.sentAt = new Date();
+      await booking.save();
+      
+      console.log(`✅ Đã gửi email booking confirmation cho ${booking.contactInfo.email}`);
     } catch (emailError) {
-      console.error('Failed to send booking confirmation email:', emailError);
-      // Không fail booking nếu email lỗi
+      console.error('❌ Failed to send booking confirmation email:', emailError);
+      // Không fail booking nếu email lỗi, nhưng log để retry sau
+      booking.notifications.bookingConfirmation.sent = false;
+      await booking.save();
     }
 
     // Tạo payment URL nếu có paymentMethod
@@ -366,6 +420,18 @@ class BookingController {
       };
     }
 
+    // Ghi nhận sử dụng payment code (sẽ được confirm khi payment thành công)
+    // Lưu vào session để xử lý sau khi payment callback
+    if (usedPaymentCode && user) {
+      // Lưu thông tin để xử lý sau khi payment thành công
+      booking.metadata.pendingPaymentCode = {
+        paymentCodeId: usedPaymentCode._id,
+        userId: user._id,
+        discountAmount: paymentCodeDiscount
+      };
+      await booking.save();
+    }
+
     const response = ApiResponse.created(responseData, 'Tạo booking thành công');
     response.send(res);
   });
@@ -385,9 +451,16 @@ class BookingController {
     }
 
     // Check if user has permission to view this booking
-    if (req.user && booking.user && booking.user.toString() !== req.user.id) {
-      return next(new AppError('Bạn không có quyền xem booking này', 403));
+    // Guest (req.user = null) can view any booking
+    // Logged-in user can only view their own bookings
+    if (req.user && booking.user) {
+      // Both user and booking have user - check ownership
+      if (booking.user.toString() !== req.user.id) {
+        return next(new AppError('Bạn không có quyền xem booking này', 403));
+      }
     }
+    // Guest booking (booking.user = null) can be viewed by anyone with the ID
+    // This allows payment callback to access guest bookings
 
     const response = ApiResponse.success(booking, 'Lấy thông tin booking thành công');
     response.send(res);
@@ -418,36 +491,127 @@ class BookingController {
     response.send(res);
   });
 
+  // Thanh toán lại cho booking pending/failed
+  static retryPayment = asyncHandler(async (req, res, next) => {
+    const { bookingId } = req.params;
+
+    // Tìm booking
+    const booking = await Booking.findById(bookingId)
+      .populate('flights.flight');
+
+    if (!booking) {
+      return next(new AppError('Không tìm thấy booking', 404));
+    }
+
+    // Kiểm tra quyền truy cập
+    if (req.user && booking.user) {
+      if (booking.user.toString() !== req.user.id) {
+        return next(new AppError('Bạn không có quyền thực hiện thao tác này', 403));
+      }
+    }
+
+    // Chỉ cho phép retry với status pending hoặc failed
+    if (!['pending', 'failed'].includes(booking.status)) {
+      return next(new AppError(`Không thể thanh toán lại booking với trạng thái ${booking.status}`, 400));
+    }
+
+    // Kiểm tra thời hạn - không cho retry quá 24h
+    const hoursSinceCreated = (Date.now() - new Date(booking.createdAt).getTime()) / (1000 * 60 * 60);
+    if (hoursSinceCreated > 24) {
+      return next(new AppError('Booking đã quá hạn thanh toán (24 giờ). Vui lòng đặt chỗ mới', 400));
+    }
+
+    // Kiểm tra chuyến bay còn chỗ không
+    for (const flightBooking of booking.flights) {
+      const flight = flightBooking.flight;
+      const inventory = await Inventory.findOne({ flight: flight._id });
+      
+      if (!inventory) {
+        return next(new AppError('Không tìm thấy thông tin chỗ ngồi', 404));
+      }
+
+      const requestedSeats = flightBooking.passengers.length;
+      if (inventory.available < requestedSeats) {
+        return next(new AppError(`Chuyến bay ${flight.flightNumber} không còn đủ chỗ trống`, 400));
+      }
+    }
+
+    // Tạo payment mới
+    try {
+      const paymentGatewayService = require('../services/paymentGatewayService');
+      const paymentResult = await paymentGatewayService.createPayment({
+        amount: booking.payment.totalAmount,
+        orderId: booking.bookingReference,
+        orderInfo: `Thanh toán booking ${booking.bookingReference}`,
+        returnUrl: process.env.PAYMENT_RETURN_URL || 'http://localhost:5173/payment/callback',
+        ipAddr: req.ip || '127.0.0.1',
+        locale: 'vn'
+      });
+
+      // Cập nhật payment status về pending
+      booking.payment.status = 'pending';
+      booking.payment.retryCount = (booking.payment.retryCount || 0) + 1;
+      booking.payment.lastRetryAt = new Date();
+      booking.status = 'pending';
+      await booking.save();
+
+      const response = ApiResponse.success({
+        paymentUrl: paymentResult.paymentUrl,
+        paymentId: paymentResult.paymentId,
+        booking: {
+          id: booking._id,
+          reference: booking.bookingReference,
+          status: booking.status
+        }
+      }, 'Đã tạo yêu cầu thanh toán mới');
+      response.send(res);
+    } catch (error) {
+      console.error('Error creating retry payment:', error);
+      return next(new AppError('Không thể tạo yêu cầu thanh toán. Vui lòng thử lại sau', 500));
+    }
+  });
+
+  // Cleanup bookings cũ (pending/failed quá 24h)
+  static cleanupExpiredBookings = asyncHandler(async (req, res, next) => {
+    try {
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+      // Tìm và xóa bookings pending/failed quá 24h
+      const result = await Booking.deleteMany({
+        status: { $in: ['pending', 'failed'] },
+        createdAt: { $lt: twentyFourHoursAgo }
+      });
+
+      const response = ApiResponse.success({
+        deletedCount: result.deletedCount,
+        cleanupTime: new Date().toISOString()
+      }, `Đã xóa ${result.deletedCount} booking hết hạn`);
+      response.send(res);
+    } catch (error) {
+      console.error('Error cleaning up expired bookings:', error);
+      return next(new AppError('Không thể thực hiện cleanup', 500));
+    }
+  });
+
   // Tra cứu booking cho guest bằng reference (GET endpoint)
   static guestBookingLookup = asyncHandler(async (req, res, next) => {
-    const { reference } = req.params;
-    const { email, phone } = req.query;
+    // Support both :reference and :bookingCode params
+    const reference = req.params.reference || req.params.bookingCode;
+    const { documentNumber } = req.query;
 
     if (!reference) {
       return next(new AppError('Vui lòng cung cấp mã đặt chỗ', 400));
     }
 
-    if (!email && !phone) {
-      return next(new AppError('Vui lòng cung cấp email hoặc số điện thoại', 400));
+    // Check-in chỉ cần mã booking + CCCD/Passport
+    if (!documentNumber) {
+      return next(new AppError('Vui lòng cung cấp số CCCD/Passport', 400));
     }
 
-    const query = {
+    // Tìm booking theo reference
+    const booking = await Booking.findOne({
       bookingReference: reference.toUpperCase()
-    };
-
-    // Tìm kiếm bằng email hoặc phone
-    if (email && phone) {
-      query.$or = [
-        { 'contactInfo.email': email.toLowerCase() },
-        { 'contactInfo.phone': phone }
-      ];
-    } else if (email) {
-      query['contactInfo.email'] = email.toLowerCase();
-    } else if (phone) {
-      query['contactInfo.phone'] = phone;
-    }
-
-    const booking = await Booking.findOne(query)
+    })
       .populate('flights.flight', 'flightNumber route airline status aircraft')
       .populate('flights.flight.route.departure.airport', 'code name city country timezone')
       .populate('flights.flight.route.arrival.airport', 'code name city country timezone')
@@ -460,7 +624,19 @@ class BookingController {
       });
 
     if (!booking) {
-      return next(new AppError('Không tìm thấy booking với thông tin đã cung cấp', 404));
+      return next(new AppError('Không tìm thấy booking với mã đặt chỗ này', 404));
+    }
+
+    // Verify documentNumber - check-in yêu cầu CCCD/Passport khớp
+    const hasMatchingDocument = booking.flights.some(flight =>
+      flight.passengers.some(p => 
+        p.document && p.document.number && 
+        p.document.number.toLowerCase() === documentNumber.toLowerCase()
+      )
+    );
+
+    if (!hasMatchingDocument) {
+      return next(new AppError('Số CCCD/Passport không khớp với thông tin đặt vé', 403));
     }
 
     // Tạo response data phù hợp cho guest
@@ -670,8 +846,9 @@ class BookingController {
       return next(new AppError('Không tìm thấy booking', 404));
     }
 
-    if (booking.status !== 'confirmed') {
-      return next(new AppError('Booking chưa được xác nhận', 400));
+    // Kiểm tra booking đã được xác nhận và thanh toán
+    if (booking.status !== 'confirmed' && booking.payment?.status !== 'paid') {
+      return next(new AppError('Booking chưa được xác nhận hoặc thanh toán. Vui lòng hoàn tất thanh toán trước khi check-in', 400));
     }
 
     // Check if check-in window is open (24h - 2h before departure)
@@ -705,6 +882,160 @@ class BookingController {
 
     const response = ApiResponse.success(booking, 'Check-in thành công');
     response.send(res);
+  });
+
+  // Download booking ticket PDF
+  static downloadBookingPDF = asyncHandler(async (req, res, next) => {
+    const { reference } = req.params;
+    const userId = req.user?._id;
+
+    // Tìm booking
+    const booking = await Booking.findOne({
+      bookingReference: reference.toUpperCase()
+    })
+      .populate({
+        path: 'flights.flight',
+        populate: {
+          path: 'route.departure.airport route.arrival.airport'
+        }
+      })
+      .populate('user');
+
+    if (!booking) {
+      return next(new AppError('Không tìm thấy booking', 404));
+    }
+
+    // Kiểm tra quyền truy cập
+    // Nếu booking có user và có userId trong request (user đã đăng nhập)
+    if (booking.user && userId) {
+      // Kiểm tra ownership - chỉ user sở hữu booking mới được download
+      if (booking.user._id.toString() !== userId.toString()) {
+        return next(new AppError('Bạn không có quyền truy cập booking này', 403));
+      }
+    }
+    // Guest booking (booking.user === null) không cần kiểm tra quyền
+
+    try {
+      // Generate PDF
+      const pdfBuffer = await pdfService.generateBookingPDF(booking);
+
+      // Set headers
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="VietJet-${booking.bookingReference}.pdf"`);
+      res.setHeader('Content-Length', pdfBuffer.length);
+
+      // Send PDF
+      res.send(pdfBuffer);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      return next(new AppError('Không thể tạo file PDF. Vui lòng thử lại sau', 500));
+    }
+  });
+
+  // Download booking ticket PDF cho guest (cần email verification)
+  static downloadGuestBookingPDF = asyncHandler(async (req, res, next) => {
+    const { reference } = req.params;
+    const { email } = req.query;
+
+    if (!email) {
+      return next(new AppError('Vui lòng cung cấp email', 400));
+    }
+
+    // Tìm booking
+    const booking = await Booking.findOne({
+      bookingReference: reference.toUpperCase(),
+      'contactInfo.email': email.toLowerCase()
+    })
+      .populate({
+        path: 'flights.flight',
+        populate: {
+          path: 'route.departure.airport route.arrival.airport'
+        }
+      })
+      .populate('user');
+
+    if (!booking) {
+      return next(new AppError('Không tìm thấy booking với thông tin này', 404));
+    }
+
+    try {
+      // Generate PDF
+      const pdfBuffer = await pdfService.generateBookingPDF(booking);
+
+      // Set headers
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="VietJet-${booking.bookingReference}.pdf"`);
+      res.setHeader('Content-Length', pdfBuffer.length);
+
+      // Send PDF
+      res.send(pdfBuffer);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      return next(new AppError('Không thể tạo file PDF. Vui lòng thử lại sau', 500));
+    }
+  });
+
+  // Resend booking confirmation email
+  static resendBookingConfirmation = asyncHandler(async (req, res, next) => {
+    const { reference } = req.params;
+    const { email } = req.body;
+
+    if (!email) {
+      return next(new AppError('Vui lòng cung cấp email', 400));
+    }
+
+    // Tìm booking
+    const booking = await Booking.findOne({
+      bookingReference: reference.toUpperCase(),
+      'contactInfo.email': email.toLowerCase()
+    })
+      .populate({
+        path: 'flights.flight',
+        populate: {
+          path: 'route.departure.airport route.arrival.airport aircraft'
+        }
+      })
+      .populate('user');
+
+    if (!booking) {
+      return next(new AppError('Không tìm thấy booking', 404));
+    }
+
+    // Kiểm tra xem đã gửi trong 5 phút gần đây chưa (tránh spam)
+    if (booking.notifications.bookingConfirmation.sent && 
+        booking.notifications.bookingConfirmation.sentAt) {
+      const lastSent = new Date(booking.notifications.bookingConfirmation.sentAt);
+      const now = new Date();
+      const diffMinutes = (now - lastSent) / (1000 * 60);
+      
+      if (diffMinutes < 5) {
+        return next(new AppError(`Vui lòng đợi ${Math.ceil(5 - diffMinutes)} phút trước khi gửi lại email`, 429));
+      }
+    }
+
+    try {
+      const emailService = require('../services/emailService');
+      
+      // Format flight details
+      const flightDetails = booking.flights.map(f => ({
+        flight: f.flight,
+        passengers: f.passengers,
+        fareClass: f.fareClass
+      }));
+
+      await emailService.sendBookingConfirmation(booking.user, booking, flightDetails);
+      
+      // Cập nhật flag
+      booking.notifications.bookingConfirmation.sent = true;
+      booking.notifications.bookingConfirmation.sentAt = new Date();
+      await booking.save();
+
+      const response = ApiResponse.success(null, 'Email xác nhận đã được gửi lại thành công');
+      response.send(res);
+    } catch (error) {
+      console.error('Error resending booking confirmation:', error);
+      return next(new AppError('Không thể gửi email. Vui lòng thử lại sau', 500));
+    }
   });
 
   // Helper methods

@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vé máy bay - {{bookingReference}}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Arial', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            padding: 20px;
+            background: #fff;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            border: 2px solid #dc2626;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .logo {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .header-subtitle {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        .booking-ref {
+            background-color: #fbbf24;
+            color: #78350f;
+            padding: 15px;
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            letter-spacing: 2px;
+        }
+        .content {
+            padding: 30px;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #f3f4f6;
+        }
+        .section:last-child {
+            border-bottom: none;
+        }
+        .section-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #dc2626;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #dc2626;
+        }
+        .flight-card {
+            background-color: #f9fafb;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border-left: 4px solid #dc2626;
+        }
+        .flight-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .flight-number {
+            font-size: 20px;
+            font-weight: bold;
+            color: #dc2626;
+        }
+        .flight-date {
+            font-size: 14px;
+            color: #6b7280;
+        }
+        .flight-route {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 20px 0;
+        }
+        .airport {
+            flex: 1;
+            text-align: center;
+        }
+        .airport-code {
+            font-size: 28px;
+            font-weight: bold;
+            color: #111827;
+        }
+        .airport-name {
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: 5px;
+        }
+        .airport-time {
+            font-size: 16px;
+            font-weight: bold;
+            margin-top: 8px;
+        }
+        .flight-arrow {
+            font-size: 24px;
+            color: #dc2626;
+            margin: 0 15px;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .info-item {
+            background-color: white;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .info-label {
+            font-size: 11px;
+            color: #6b7280;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+        .info-value {
+            font-size: 14px;
+            font-weight: bold;
+            color: #111827;
+        }
+        .passenger-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        .passenger-table th {
+            background-color: #f3f4f6;
+            padding: 12px;
+            text-align: left;
+            font-size: 12px;
+            color: #374151;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        .passenger-table td {
+            padding: 12px;
+            border-bottom: 1px solid #e5e7eb;
+            font-size: 14px;
+        }
+        .passenger-table tr:last-child td {
+            border-bottom: none;
+        }
+        .price-section {
+            background-color: #ecfdf5;
+            padding: 20px;
+            border-radius: 8px;
+            border: 2px solid #10b981;
+        }
+        .price-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            font-size: 14px;
+        }
+        .price-row.total {
+            border-top: 2px solid #10b981;
+            margin-top: 10px;
+            padding-top: 15px;
+            font-size: 18px;
+            font-weight: bold;
+            color: #059669;
+        }
+        .contact-info {
+            background-color: #fef3c7;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+        .contact-item {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+        .important-notes {
+            background-color: #fee2e2;
+            border-left: 4px solid #dc2626;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 5px;
+        }
+        .important-notes h4 {
+            color: #991b1b;
+            margin-bottom: 10px;
+        }
+        .important-notes ul {
+            list-style-position: inside;
+            color: #7f1d1d;
+        }
+        .important-notes li {
+            margin: 5px 0;
+            font-size: 13px;
+        }
+        .footer {
+            background-color: #f9fafb;
+            padding: 20px;
+            text-align: center;
+            color: #6b7280;
+            font-size: 12px;
+        }
+        .barcode-section {
+            text-align: center;
+            padding: 20px;
+            background-color: #f3f4f6;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+        .barcode-placeholder {
+            background-color: #000;
+            height: 60px;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-family: monospace;
+            font-size: 10px;
+            letter-spacing: 1px;
+            margin: 10px 0;
+        }
+        @media print {
+            body {
+                padding: 0;
+            }
+            .container {
+                border: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="logo">✈️ VietJet Air</div>
+            <div class="header-subtitle">VÉ MÁY BAY ĐIỆN TỬ</div>
+        </div>
+
+        <!-- Booking Reference -->
+        <div class="booking-ref">
+            {{bookingReference}}
+        </div>
+
+        <div class="content">
+            <!-- Flight Information -->
+            <div class="section">
+                <div class="section-title">📍 Thông tin chuyến bay</div>
+                {{#each flights}}
+                <div class="flight-card">
+                    <div class="flight-header">
+                        <div class="flight-number">{{this.flightNumber}}</div>
+                        <div class="flight-date">{{this.date}}</div>
+                    </div>
+                    
+                    <div class="flight-route">
+                        <div class="airport">
+                            <div class="airport-code">{{this.departure.code}}</div>
+                            <div class="airport-name">{{this.departure.name}}</div>
+                            <div class="airport-time">{{this.departure.time}}</div>
+                        </div>
+                        <div class="flight-arrow">✈️</div>
+                        <div class="airport">
+                            <div class="airport-code">{{this.arrival.code}}</div>
+                            <div class="airport-name">{{this.arrival.name}}</div>
+                            <div class="airport-time">{{this.arrival.time}}</div>
+                        </div>
+                    </div>
+
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <div class="info-label">Hạng vé</div>
+                            <div class="info-value">{{this.class}}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Thời gian bay</div>
+                            <div class="info-value">{{this.duration}}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Số ghế</div>
+                            <div class="info-value">{{this.seats}}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Hành lý</div>
+                            <div class="info-value">{{this.baggage}}</div>
+                        </div>
+                    </div>
+                </div>
+                {{/each}}
+            </div>
+
+            <!-- Passenger Information -->
+            <div class="section">
+                <div class="section-title">👥 Thông tin hành khách</div>
+                <table class="passenger-table">
+                    <thead>
+                        <tr>
+                            <th>STT</th>
+                            <th>Họ và tên</th>
+                            <th>Loại</th>
+                            <th>Giới tính</th>
+                            <th>Ngày sinh</th>
+                            <th>Số ghế</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{#each passengers}}
+                        <tr>
+                            <td>{{this.index}}</td>
+                            <td>{{this.fullName}}</td>
+                            <td>{{this.type}}</td>
+                            <td>{{this.gender}}</td>
+                            <td>{{this.dateOfBirth}}</td>
+                            <td><strong>{{this.seatNumber}}</strong></td>
+                        </tr>
+                        {{/each}}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Contact Information -->
+            <div class="section">
+                <div class="section-title">📞 Thông tin liên hệ</div>
+                <div class="contact-info">
+                    <div class="contact-item"><strong>Email:</strong> {{contactEmail}}</div>
+                    <div class="contact-item"><strong>Điện thoại:</strong> {{contactPhone}}</div>
+                    {{#if contactAddress}}
+                    <div class="contact-item"><strong>Địa chỉ:</strong> {{contactAddress}}</div>
+                    {{/if}}
+                </div>
+            </div>
+
+            <!-- Payment Information -->
+            <div class="section">
+                <div class="section-title">💰 Thông tin thanh toán</div>
+                <div class="price-section">
+                    <div class="price-row">
+                        <span>Giá vé cơ bản:</span>
+                        <span>{{baseFare}} VNĐ</span>
+                    </div>
+                    <div class="price-row">
+                        <span>Thuế:</span>
+                        <span>{{taxes}} VNĐ</span>
+                    </div>
+                    <div class="price-row">
+                        <span>Phí dịch vụ:</span>
+                        <span>{{fees}} VNĐ</span>
+                    </div>
+                    {{#if services}}
+                    <div class="price-row">
+                        <span>Dịch vụ bổ sung (chọn ghế, hành lý...):</span>
+                        <span>{{services}} VNĐ</span>
+                    </div>
+                    {{/if}}
+                    {{#if discount}}
+                    <div class="price-row" style="color: #059669;">
+                        <span>Giảm giá:</span>
+                        <span>-{{discount}} VNĐ</span>
+                    </div>
+                    {{/if}}
+                    <div class="price-row total">
+                        <span>TỔNG CỘNG:</span>
+                        <span>{{totalAmount}} VNĐ</span>
+                    </div>
+                    <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #10b981;">
+                        <div class="price-row" style="font-size: 13px;">
+                            <span>Trạng thái:</span>
+                            <span style="color: #059669; font-weight: bold;">{{paymentStatus}}</span>
+                        </div>
+                        <div class="price-row" style="font-size: 13px;">
+                            <span>Phương thức:</span>
+                            <span>{{paymentMethod}}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Barcode -->
+            <div class="barcode-section">
+                <div style="font-weight: bold; margin-bottom: 10px;">Mã đặt chỗ</div>
+                <div class="barcode-placeholder">
+                    |||| || |||| ||| |||| || ||| |||| ||| || |||| |
+                </div>
+                <div style="margin-top: 10px; font-size: 14px; font-weight: bold;">{{bookingReference}}</div>
+            </div>
+
+            <!-- Important Notes -->
+            <div class="important-notes">
+                <h4>⚠️ Lưu ý quan trọng</h4>
+                <ul>
+                    <li>Vui lòng có mặt tại sân bay ít nhất 2 giờ trước giờ khởi hành cho chuyến bay quốc tế và 90 phút cho chuyến bay nội địa</li>
+                    <li>Check-in online mở từ 24 giờ đến 1 giờ trước giờ khởi hành</li>
+                    <li>Mang theo giấy tờ tùy thân hợp lệ (CMND/CCCD/Hộ chiếu)</li>
+                    <li>Hành lý xách tay: tối đa 7kg (56cm x 36cm x 23cm)</li>
+                    <li>Vé đã mua không hoàn, không đổi (trừ khi mua gói linh hoạt)</li>
+                    <li>Thời gian trên vé là giờ địa phương tại mỗi sân bay</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>VietJet Air</strong></p>
+            <p>Hotline: 1900 1886 | Email: support@vietjet.com</p>
+            <p style="margin-top: 10px;">Ngày in: {{printDate}}</p>
+            <p style="font-size: 11px; margin-top: 10px;">
+                Vé này là bản sao điện tử. Vui lòng xuất trình tại quầy check-in hoặc sử dụng check-in online.
+            </p>
+        </div>
+    </div>
+</body>
+</html>

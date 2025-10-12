@@ -262,7 +262,10 @@ const FlightSearchForm = () => {
           <button 
             type="button" 
             onClick={handleSwapCities}
-            className="absolute left-1/2 top-[60%] transform -translate-x-1/2 -translate-y-1/2 bg-red-600 border-none rounded-full w-12 h-12 hidden md:flex items-center justify-center text-white cursor-pointer transition-all duration-300 hover:bg-red-700 hover:rotate-180 shadow-lg z-20"
+            style={{
+              bottom: -18
+            }}
+            className="absolute left-1/2   transform -translate-x-1/2 -translate-y-1/2 bg-red-600 border-none rounded-full w-12 h-12 hidden md:flex items-center justify-center text-white cursor-pointer transition-all duration-300 hover:bg-red-700 hover:rotate-180 shadow-lg z-20"
           >
             <ArrowLeftRight size={20} />
           </button>

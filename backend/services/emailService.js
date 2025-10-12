@@ -158,6 +158,154 @@ class EmailService {
     return await this.sendEmail(mailOptions);
   }
 
+  // Gửi email xác nhận thanh toán
+  async sendPaymentConfirmation(user, booking, payment) {
+    // Lấy tên hành khách
+    const firstPassenger = booking.flights[0]?.passengers[0];
+    let passengerName = 'Quý khách';
+    
+    if (firstPassenger && firstPassenger.firstName && firstPassenger.lastName) {
+      passengerName = `${firstPassenger.firstName} ${firstPassenger.lastName}`;
+    } else if (booking.contactInfo && booking.contactInfo.email) {
+      passengerName = booking.contactInfo.email.split('@')[0];
+    }
+
+    // Lấy phương thức thanh toán
+    const paymentMethod = payment.paymentMethods && payment.paymentMethods[0]
+      ? (payment.paymentMethods[0].eWallet?.provider || payment.paymentMethods[0].type)
+      : 'N/A';
+
+    // Format thời gian thanh toán
+    const paymentTime = payment.status?.timeline?.completed 
+      ? new Date(payment.status.timeline.completed).toLocaleString('vi-VN')
+      : new Date().toLocaleString('vi-VN');
+
+    // Xử lý flight details
+    const flightsInfo = booking.flights.map(flightBooking => {
+      const flight = flightBooking.flight;
+      return {
+        flightNumber: flight.flightNumber,
+        route: `${flight.route.departure.airport.code.iata} → ${flight.route.arrival.airport.code.iata}`,
+        departureDate: new Date(flight.route.departure.time).toLocaleDateString('vi-VN'),
+        departureTime: new Date(flight.route.departure.time).toLocaleTimeString('vi-VN', { 
+          hour: '2-digit', 
+          minute: '2-digit' 
+        }),
+        arrivalTime: new Date(flight.route.arrival.time).toLocaleTimeString('vi-VN', { 
+          hour: '2-digit', 
+          minute: '2-digit' 
+        }),
+        seatClass: flightBooking.type || 'Economy'
+      };
+    });
+
+    const emailData = {
+      passengerName,
+      transactionId: payment.paymentReference,
+      bookingReference: booking.bookingReference,
+      paymentMethod,
+      paymentTime,
+      totalAmount: payment.amount.total.toLocaleString('vi-VN'),
+      currency: payment.amount.currency,
+      flights: flightsInfo,
+      checkInUrl: `${process.env.FRONTEND_URL}/check-in/${booking.bookingReference}`,
+      manageBookingUrl: user.isGuest 
+        ? `${process.env.FRONTEND_URL}/lookup/${booking.bookingReference}`
+        : `${process.env.FRONTEND_URL}/manage-booking/${booking.bookingReference}`
+    };
+
+    const htmlContent = await this.loadTemplate('payment-confirmation', emailData);
+
+    const mailOptions = {
+      from: {
+        name: 'VietJet Air',
+        address: process.env.FROM_EMAIL || 'noreply@vietjet.com'
+      },
+      to: booking.contactInfo.email,
+      subject: `Xác nhận thanh toán - ${booking.bookingReference}`,
+      html: htmlContent
+    };
+
+    return await this.sendEmail(mailOptions);
+  }
+
+  // Gửi email boarding pass sau khi check-in
+  async sendBoardingPass(booking, flight, passenger, checkinData) {
+    // Format thông tin hành khách
+    const passengerName = `${passenger.firstName} ${passenger.lastName}`.toUpperCase();
+    const passengerType = passenger.type === 'adult' ? 'Người lớn' : 
+                         passenger.type === 'child' ? 'Trẻ em' : 'Em bé';
+
+    // Format thời gian
+    const departureDate = new Date(flight.route.departure.time).toLocaleDateString('vi-VN', {
+      weekday: 'long',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+    const departureTime = new Date(flight.route.departure.time).toLocaleTimeString('vi-VN', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    const arrivalTime = new Date(flight.route.arrival.time).toLocaleTimeString('vi-VN', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+
+    // Tính thời gian bay
+    const duration = Math.floor(
+      (new Date(flight.route.arrival.time) - new Date(flight.route.departure.time)) / (1000 * 60)
+    );
+    const hours = Math.floor(duration / 60);
+    const minutes = duration % 60;
+    const durationStr = `${hours}h ${minutes}m`;
+
+    // Thời gian lên máy bay (trước 30 phút)
+    const boardingTime = new Date(new Date(flight.route.departure.time) - 30 * 60000)
+      .toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+    
+    // Thời gian đóng cổng (trước 15 phút)
+    const gateCloseTime = new Date(new Date(flight.route.departure.time) - 15 * 60000)
+      .toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+
+    const emailData = {
+      flightNumber: flight.flightNumber,
+      bookingReference: booking.bookingReference,
+      passengerName,
+      passengerType,
+      departureAirport: flight.route.departure.airport.code,
+      departureAirportName: flight.route.departure.airport.name.vi,
+      arrivalAirport: flight.route.arrival.airport.code,
+      arrivalAirportName: flight.route.arrival.airport.name.vi,
+      departureDate,
+      departureTime,
+      arrivalTime,
+      duration: durationStr,
+      seatNumber: checkinData.seatNumber || passenger.seatNumber,
+      seatClass: checkinData.fareClass || 'Economy',
+      gate: checkinData.gate || flight.route.departure.gate || 'TBA',
+      boardingGroup: checkinData.boardingGroup || 'A',
+      boardingTime,
+      gateCloseTime,
+      boardingPassNumber: `${booking.bookingReference}${passenger._id.toString().slice(-6)}`.toUpperCase(),
+      downloadUrl: `${process.env.FRONTEND_URL}/boarding-pass/${booking.bookingReference}/${passenger._id}`
+    };
+
+    const htmlContent = await this.loadTemplate('boarding-pass', emailData);
+
+    const mailOptions = {
+      from: {
+        name: 'VietJet Air',
+        address: process.env.FROM_EMAIL || 'noreply@vietjet.com'
+      },
+      to: booking.contactInfo.email,
+      subject: `Thẻ lên máy bay - ${flight.flightNumber} - ${passengerName}`,
+      html: htmlContent
+    };
+
+    return await this.sendEmail(mailOptions);
+  }
+
   // Gửi email nhắc nhở check-in
   async sendCheckInReminder(booking, flight) {
     const emailData = {

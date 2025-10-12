@@ -76,6 +76,15 @@ router.put('/routes/:routeId', RouteController.updateRoute);
 router.patch('/routes/:routeId/status', RouteController.updateRouteStatus);
 router.delete('/routes/:routeId', RouteController.deleteRoute);
 
+// Payment Code management
+router.get('/payment-codes/stats', AdminController.getPaymentCodeStats);
+router.get('/payment-codes', AdminController.getPaymentCodes);
+router.get('/payment-codes/:id', AdminController.getPaymentCodeById);
+router.post('/payment-codes', AdminController.createPaymentCode);
+router.put('/payment-codes/:id', AdminController.updatePaymentCode);
+router.delete('/payment-codes/:id', AdminController.deletePaymentCode);
+router.patch('/payment-codes/:id/toggle', AdminController.togglePaymentCodeStatus);
+
 // Reports
 router.get('/reports', AdminController.getReports);
 

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Footer from '../components/Footer';
 import Header from '../components/Header';
+import PaymentCodeInput from '../components/PaymentCodeInput';
 import PromoCodeInput from '../components/PromoCodeInput';
 import axiosInstance from '../config/axios';
 import { useAuth } from '../context/AuthContext';
@@ -34,6 +35,8 @@ const BookingPage = () => {
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [promoDiscount, setPromoDiscount] = useState(0);
   const [appliedPromoCode, setAppliedPromoCode] = useState(null);
+  const [paymentCodeDiscount, setPaymentCodeDiscount] = useState(0);
+  const [appliedPaymentCode, setAppliedPaymentCode] = useState(null);
 
   useEffect(() => {
     if (location.state) {
@@ -268,7 +271,11 @@ const BookingPage = () => {
           email: contactInfo.email,
           phone: contactInfo.phone
         },
-        paymentMethod
+        paymentMethod,
+        // Thêm payment code nếu có
+        paymentCode: appliedPaymentCode ? appliedPaymentCode.code : undefined,
+        // Thêm promo code nếu có
+        promoCode: appliedPromoCode ? appliedPromoCode.code : undefined
       };
 
       console.log('Sending booking data:', bookingData);
@@ -342,6 +349,11 @@ const BookingPage = () => {
     setAppliedPromoCode(null);
   };
 
+  const handlePaymentCodeApplied = (discountAmount, codeInfo) => {
+    setPaymentCodeDiscount(discountAmount);
+    setAppliedPaymentCode(codeInfo);
+  };
+
   if (!flight && !outboundFlight) {
     return (
       <div className="max-w-7xl mx-auto px-5 py-5">
@@ -355,8 +367,17 @@ const BookingPage = () => {
     ? ((outboundFlight.fare?.totalPrice || 0) + (returnFlight.fare?.totalPrice || 0)) * passengers.length
     : (flight?.fare?.totalPrice || 0) * passengers.length;
   const luggageCost = calculateLuggageCost();
-  const subtotal = flightPrice + luggageCost;
-  const totalPrice = subtotal - promoDiscount;
+  
+  // Tính breakdown chi tiết
+  const baseFare = Math.floor(flightPrice * 0.826); // 82.6% là giá vé cơ bản
+  const taxes = Math.floor(flightPrice * 0.055);    // 5.5% là thuế
+  const fees = flightPrice - baseFare - taxes;      // Phần còn lại là phí dịch vụ
+  const seatSelectionCost = passengers.reduce((total, p) => {
+    return total + (p.seatNumber && p.seatNumber !== 'N/A' ? 35000 : 0); // 35k cho mỗi ghế đã chọn
+  }, 0);
+  
+  const subtotal = flightPrice + luggageCost + seatSelectionCost;
+  const totalPrice = subtotal - promoDiscount - paymentCodeDiscount;
 
   if (bookingSuccess) {
     return (
@@ -768,28 +789,32 @@ const BookingPage = () => {
             <h2 className="text-gray-800 text-xl mb-5">Tóm tắt đơn hàng</h2>
             
             <div className="border-t border-gray-100 pt-4">
-              {isRoundTrip ? (
-                <>
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-gray-500">Chuyến đi ({passengers.length} người)</span>
-                    <span className="text-gray-800">{formatPrice((outboundFlight.fare?.totalPrice || 0) * passengers.length)}</span>
-                  </div>
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-gray-500">Chuyến về ({passengers.length} người)</span>
-                    <span className="text-gray-800">{formatPrice((returnFlight.fare?.totalPrice || 0) * passengers.length)}</span>
-                  </div>
-                </>
-              ) : (
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-gray-500">Vé máy bay ({passengers.length} người)</span>
-                  <span className="text-gray-800">{formatPrice(flightPrice)}</span>
-                </div>
-              )}
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-gray-500">Giá vé cơ bản</span>
+                <span className="text-gray-800">{formatPrice(baseFare)}</span>
+              </div>
+              
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-gray-500">Thuế</span>
+                <span className="text-gray-800">{formatPrice(taxes)}</span>
+              </div>
+              
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-gray-500">Phí dịch vụ</span>
+                <span className="text-gray-800">{formatPrice(fees)}</span>
+              </div>
               
               {luggageCost > 0 && (
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-gray-500">Hành lý ký gửi</span>
                   <span className="text-gray-800">{formatPrice(luggageCost)}</span>
+                </div>
+              )}
+              
+              {seatSelectionCost > 0 && (
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-gray-500">Chọn ghế</span>
+                  <span className="text-gray-800">{formatPrice(seatSelectionCost)}</span>
                 </div>
               )}
               
@@ -800,10 +825,12 @@ const BookingPage = () => {
                 </div>
               )}
               
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-gray-500">Phí dịch vụ</span>
-                <span className="text-gray-800">0₫</span>
-              </div>
+              {paymentCodeDiscount > 0 && (
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-green-600">Mã thanh toán ({appliedPaymentCode?.code})</span>
+                  <span className="text-green-600">-{formatPrice(paymentCodeDiscount)}</span>
+                </div>
+              )}
               
               <div className="flex justify-between items-center font-semibold text-lg text-gray-800 pt-2 border-t border-gray-100">
                 <span>Tổng cộng</span>
@@ -819,6 +846,14 @@ const BookingPage = () => {
                 onPromoRemoved={handlePromoRemoved}
                 routeId={isRoundTrip ? outboundFlight?.route?._id : flight?.route?._id}
                 airlineId={isRoundTrip ? outboundFlight?.airline?._id : flight?.airline?._id}
+              />
+            </div>
+
+            {/* Payment Code Input */}
+            <div className="mt-4">
+              <PaymentCodeInput
+                totalAmount={subtotal - promoDiscount}
+                onApplyCode={handlePaymentCodeApplied}
               />
             </div>
 

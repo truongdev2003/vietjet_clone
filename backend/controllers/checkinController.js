@@ -2,6 +2,7 @@ const Booking = require('../models/Booking');
 const Flight = require('../models/Flight');
 const User = require('../models/User');
 const NotificationController = require('./notificationController');
+const emailService = require('../services/emailService');
 const { asyncHandler, AppError } = require('../utils/errorHandler');
 const ApiResponse = require('../utils/apiResponse');
 const QRCode = require('qrcode');
@@ -221,6 +222,30 @@ class CheckinController {
           priority: 'high'
         }
       });
+    }
+
+    // Gửi email boarding pass cho từng hành khách đã check-in
+    for (const checkedInPassenger of checkedInPassengers) {
+      try {
+        const passenger = flightBooking.passengers.find(
+          p => p._id.toString() === checkedInPassenger.passengerId.toString()
+        );
+        
+        if (passenger && booking.contactInfo && booking.contactInfo.email) {
+          const checkinData = {
+            seatNumber: checkedInPassenger.seatNumber,
+            fareClass: passenger.fareClass || 'Economy',
+            gate: flight.route.departure.gate,
+            boardingGroup: passenger.ticket?.boardingGroup || 'A'
+          };
+
+          await emailService.sendBoardingPass(booking, flight, passenger, checkinData);
+          console.log(`✅ Đã gửi boarding pass email cho ${passenger.firstName} ${passenger.lastName}`);
+        }
+      } catch (emailError) {
+        console.error('❌ Lỗi gửi boarding pass email:', emailError);
+        // Không throw error để không ảnh hưởng đến quá trình check-in
+      }
     }
 
     const response = ApiResponse.success({

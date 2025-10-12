@@ -1,5 +1,6 @@
 const Payment = require('../models/Payment');
 const Booking = require('../models/Booking');
+const PaymentCode = require('../models/PaymentCode');
 const { asyncHandler, AppError } = require('../utils/errorHandler');
 const ApiResponse = require('../utils/apiResponse');
 const crypto = require('crypto');
@@ -195,7 +196,10 @@ class PaymentController {
         await payment.save();
 
         // Update booking status
-        const booking = await Booking.findById(payment.booking);
+        const booking = await Booking.findById(payment.booking)
+          .populate('flights.flight')
+          .populate('user');
+        
         if (booking) {
           booking.status = 'confirmed';
           booking.payment = payment._id;
@@ -229,9 +233,26 @@ class PaymentController {
               }
             );
           }
-        }
 
-        // TODO: Send confirmation email/SMS to customer
+          // Send payment confirmation email
+          try {
+            const emailService = require('../services/emailService');
+            const emailResult = await emailService.sendPaymentConfirmation(
+              booking.user, 
+              booking, 
+              payment
+            );
+            
+            if (emailResult.success) {
+              console.log('✅ Payment confirmation email sent to:', booking.contactInfo.email);
+            } else {
+              console.error('❌ Failed to send payment confirmation email:', emailResult.error);
+            }
+          } catch (emailError) {
+            console.error('❌ Email sending error:', emailError);
+            // Không throw error, payment đã thành công
+          }
+        }
 
         const response = ApiResponse.success({
             payment,
@@ -540,6 +561,90 @@ class PaymentController {
     }, 'Lấy danh sách thanh toán thành công');
 
     response.send(res);
+  });
+
+  // Validate và tính toán discount cho payment code
+  static validatePaymentCode = asyncHandler(async (req, res, next) => {
+    const { code, amount, bookingId } = req.body;
+
+    if (!code || !amount) {
+      return next(new AppError('Thiếu thông tin mã thanh toán hoặc số tiền', 400));
+    }
+
+    try {
+      // Tìm payment code hợp lệ
+      const paymentCode = await PaymentCode.findValidCode(code);
+
+      // Kiểm tra user có thể sử dụng mã không
+      const userId = req.user ? req.user.id : null;
+      if (userId) {
+        const canUse = paymentCode.canUserUse(userId);
+        if (!canUse.valid) {
+          return next(new AppError(canUse.message, 400));
+        }
+      }
+
+      // Kiểm tra số tiền tối thiểu
+      if (amount < paymentCode.minAmount) {
+        return next(new AppError(
+          `Số tiền thanh toán tối thiểu để áp dụng mã này là ${paymentCode.minAmount.toLocaleString('vi-VN')} VND`,
+          400
+        ));
+      }
+
+      // Nếu có bookingId, kiểm tra điều kiện áp dụng
+      if (bookingId && paymentCode.applicableFor) {
+        const booking = await Booking.findById(bookingId).populate('flights.flight');
+        
+        if (booking) {
+          // Kiểm tra flights
+          if (paymentCode.applicableFor.flights && 
+              paymentCode.applicableFor.flights.length > 0) {
+            const flightIds = booking.flights.map(f => f.flight._id.toString());
+            const hasApplicableFlight = flightIds.some(id => 
+              paymentCode.applicableFor.flights.map(f => f.toString()).includes(id)
+            );
+            
+            if (!hasApplicableFlight) {
+              return next(new AppError('Mã không áp dụng cho chuyến bay này', 400));
+            }
+          }
+
+          // Kiểm tra fare classes
+          if (paymentCode.applicableFor.fareClasses && 
+              paymentCode.applicableFor.fareClasses.length > 0) {
+            const fareClasses = booking.flights.map(f => f.fare.class);
+            const hasApplicableFare = fareClasses.some(fc => 
+              paymentCode.applicableFor.fareClasses.includes(fc)
+            );
+            
+            if (!hasApplicableFare) {
+              return next(new AppError('Mã không áp dụng cho hạng vé này', 400));
+            }
+          }
+        }
+      }
+
+      // Tính toán discount
+      const discountAmount = paymentCode.calculateDiscount(amount);
+      const finalAmount = amount - discountAmount;
+
+      const response = ApiResponse.success({
+        valid: true,
+        code: paymentCode.code,
+        name: paymentCode.name,
+        discountType: paymentCode.discountType,
+        discountValue: paymentCode.value,
+        discountAmount,
+        originalAmount: amount,
+        finalAmount,
+        expiryDate: paymentCode.expiryDate
+      }, 'Mã thanh toán hợp lệ');
+
+      response.send(res);
+    } catch (error) {
+      return next(new AppError(error.message, 400));
+    }
   });
 }
 

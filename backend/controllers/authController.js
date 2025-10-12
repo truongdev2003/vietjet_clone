@@ -173,10 +173,17 @@ class AuthController {
         return next(new AppError('Đăng ký thành công nhưng không thể tạo token. Vui lòng đăng nhập.', 201));
       }
 
-      // TODO: Send verification email
+      // Send verification email
       try {
-        console.log('Email verification token:', emailVerificationToken);
-        // await emailService.sendVerificationEmail(newUser.contactInfo.email, emailVerificationToken);
+        const emailService = require('../services/emailService');
+        const emailResult = await emailService.sendRegistrationConfirmation(newUser, emailVerificationToken);
+        
+        if (!emailResult.success) {
+          console.error('Failed to send verification email:', emailResult.error);
+          // Không throw error, user vẫn có thể resend email sau
+        } else {
+          console.log('✅ Verification email sent successfully to:', newUser.contactInfo.email);
+        }
       } catch (emailError) {
         console.error('Email sending error:', emailError);
         // Continue - user is created, email can be resent later
@@ -400,14 +407,20 @@ class AuthController {
     
     try {
       await user.save({ validateBeforeSave: false });
+      
+      // Send reset email
+      const emailService = require('../services/emailService');
+      const emailResult = await emailService.sendPasswordReset(user, resetToken);
+      
+      if (!emailResult.success) {
+        console.error('Failed to send password reset email:', emailResult.error);
+        // Không throw error, vẫn response success để tránh tiết lộ thông tin
+      }
     } catch (error) {
       user.account.passwordResetToken = undefined;
       user.account.passwordResetExpires = undefined;
       return next(new AppError('Không thể gửi email đặt lại mật khẩu. Vui lòng thử lại.', 500));
     }
-
-    // TODO: Send reset email
-    console.log('Password reset token:', resetToken);
 
     const response = ApiResponse.success(
       { email: AuthUtils.maskEmail(email) },

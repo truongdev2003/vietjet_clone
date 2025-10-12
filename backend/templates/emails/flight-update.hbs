@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thông báo cập nhật chuyến bay</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            background-color: #ffffff;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 3px solid #dc2626;
+            padding-bottom: 20px;
+        }
+        .logo {
+            color: #dc2626;
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .alert-box {
+            background-color: #fef2f2;
+            border-left: 4px solid #dc2626;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        .update-type {
+            font-size: 24px;
+            font-weight: bold;
+            color: #dc2626;
+            margin-bottom: 10px;
+        }
+        .info-section {
+            background-color: #f9fafb;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .info-row:last-child {
+            border-bottom: none;
+        }
+        .label {
+            font-weight: 600;
+            color: #6b7280;
+        }
+        .value {
+            font-weight: bold;
+            color: #111827;
+        }
+        .new-value {
+            color: #dc2626;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .details-box {
+            background-color: #fffbeb;
+            border: 2px solid #fbbf24;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 30px;
+            background-color: #dc2626;
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 20px 5px;
+            font-weight: bold;
+        }
+        .btn:hover {
+            background-color: #b91c1c;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+            color: #6b7280;
+            font-size: 14px;
+        }
+        .contact-info {
+            background-color: #ecfdf5;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .urgent {
+            background-color: #dc2626;
+            color: white;
+            padding: 3px 10px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">✈️ VietJet Air</div>
+            <p style="color: #6b7280; margin: 0;">Thông báo cập nhật chuyến bay</p>
+        </div>
+
+        <div class="alert-box">
+            <span class="urgent">QUAN TRỌNG</span>
+            <div class="update-type">{{updateType}}</div>
+            <p>Xin chào <strong>{{passengerName}}</strong>,</p>
+            <p>Chúng tôi xin thông báo có thay đổi quan trọng về chuyến bay của quý khách.</p>
+        </div>
+
+        <div class="info-section">
+            <h3 style="margin-top: 0; color: #111827;">Thông tin chuyến bay</h3>
+            <div class="info-row">
+                <span class="label">Mã booking:</span>
+                <span class="value">{{bookingReference}}</span>
+            </div>
+            <div class="info-row">
+                <span class="label">Số hiệu chuyến bay:</span>
+                <span class="value">{{flightNumber}}</span>
+            </div>
+        </div>
+
+        {{#if newDepartureTime}}
+        <div class="details-box">
+            <h4 style="margin-top: 0; color: #92400e;">⏰ Thời gian khởi hành mới:</h4>
+            <p class="new-value">{{newDepartureTime}}</p>
+        </div>
+        {{/if}}
+
+        {{#if newGate}}
+        <div class="details-box">
+            <h4 style="margin-top: 0; color: #92400e;">🚪 Cổng khởi hành mới:</h4>
+            <p class="new-value">{{newGate}}</p>
+        </div>
+        {{/if}}
+
+        {{#if reason}}
+        <div class="info-section">
+            <h4 style="margin-top: 0;">Lý do:</h4>
+            <p style="margin: 0;">{{details}}</p>
+        </div>
+        {{/if}}
+
+        {{#if compensation}}
+        <div style="background-color: #dcfce7; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <h4 style="margin-top: 0; color: #166534;">💰 Bồi thường:</h4>
+            <p style="margin: 0;">{{compensation}}</p>
+        </div>
+        {{/if}}
+
+        <div class="contact-info">
+            <h4 style="margin-top: 0; color: #065f46;">📞 Liên hệ hỗ trợ</h4>
+            <p style="margin: 5px 0;">Nếu quý khách có bất kỳ thắc mắc nào, vui lòng liên hệ:</p>
+            <p style="margin: 5px 0;"><strong>Hotline:</strong> {{contactPhone}}</p>
+            <p style="margin: 5px 0;"><strong>Hoặc trả lời trực tiếp email này</strong></p>
+        </div>
+
+        <div style="text-align: center; margin: 30px 0;">
+            <p>Chúng tôi rất xin lỗi vì sự bất tiện này và cảm ơn sự thông cảm của quý khách.</p>
+        </div>
+
+        <div class="footer">
+            <p><strong>VietJet Air</strong></p>
+            <p>Chuyến bay an toàn - Giá vé hấp dẫn</p>
+            <p style="font-size: 12px; color: #9ca3af;">
+                Email này được gửi tự động, vui lòng không trả lời.<br>
+                Để biết thêm thông tin, truy cập <a href="{{process.env.FRONTEND_URL}}" style="color: #dc2626;">vietjetair.com</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html>

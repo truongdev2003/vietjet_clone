@@ -49,4 +49,45 @@ class ApiResponse {
   }
 }
 
+// Helper functions for easier usage
+const successResponse = (res, data = null, message = 'Success', statusCode = 200) => {
+  return ApiResponse.success(data, message, statusCode).send(res);
+};
+
+const errorResponse = (res, message = 'Error', statusCode = 400, data = null) => {
+  return ApiResponse.error(message, statusCode, data).send(res);
+};
+
+const createdResponse = (res, data = null, message = 'Created successfully') => {
+  return ApiResponse.created(data, message).send(res);
+};
+
+const notFoundResponse = (res, message = 'Resource not found') => {
+  return ApiResponse.notFound(message).send(res);
+};
+
+const unauthorizedResponse = (res, message = 'Unauthorized') => {
+  return ApiResponse.unauthorized(message).send(res);
+};
+
+const forbiddenResponse = (res, message = 'Forbidden') => {
+  return ApiResponse.forbidden(message).send(res);
+};
+
+const validationErrorResponse = (res, errors, message = 'Validation failed') => {
+  return ApiResponse.validationError(errors, message).send(res);
+};
+
+const serverErrorResponse = (res, message = 'Internal server error') => {
+  return ApiResponse.serverError(message).send(res);
+};
+
 module.exports = ApiResponse;
+module.exports.successResponse = successResponse;
+module.exports.errorResponse = errorResponse;
+module.exports.createdResponse = createdResponse;
+module.exports.notFoundResponse = notFoundResponse;
+module.exports.unauthorizedResponse = unauthorizedResponse;
+module.exports.forbiddenResponse = forbiddenResponse;
+module.exports.validationErrorResponse = validationErrorResponse;
+module.exports.serverErrorResponse = serverErrorResponse;

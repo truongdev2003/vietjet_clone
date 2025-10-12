@@ -173,10 +173,13 @@ class FlightController {
           ...flight,
           availableSeats,
           fare: fare ? {
-            basePrice: fare.pricing.base,
-            totalPrice: fare.pricing.base + fare.pricing.taxes + fare.pricing.fees,
-            currency: fare.pricing.currency,
-            fareCode: fare.code
+            basePrice: fare.pricing.baseFare?.amount || 0,
+            totalPrice: fare.pricing.total || 0,
+            currency: fare.pricing.baseFare?.currency || 'VND',
+            fareCode: fare.code,
+            taxes: fare.pricing.fees?.taxes || [],
+            surcharges: fare.pricing.fees?.surcharges || [],
+            serviceFees: fare.pricing.fees?.serviceFees || []
           } : {
             // Use pricing from flight if no fare found
             basePrice: flight.pricing?.[seatClass]?.base || 0,
@@ -254,10 +257,13 @@ class FlightController {
             ...flight,
             availableSeats,
             fare: fare ? {
-              basePrice: fare.pricing.base,
-              totalPrice: fare.pricing.base + fare.pricing.taxes + fare.pricing.fees,
-              currency: fare.pricing.currency,
-              fareCode: fare.code
+              basePrice: fare.pricing.baseFare?.amount || 0,
+              totalPrice: fare.pricing.total || 0,
+              currency: fare.pricing.baseFare?.currency || 'VND',
+              fareCode: fare.code,
+              taxes: fare.pricing.fees?.taxes || [],
+              surcharges: fare.pricing.fees?.surcharges || [],
+              serviceFees: fare.pricing.fees?.serviceFees || []
             } : {
               // Use pricing from flight if no fare found
               basePrice: flight.pricing?.[seatClass]?.base || 0,

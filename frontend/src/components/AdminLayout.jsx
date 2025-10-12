@@ -1,22 +1,22 @@
 import {
-  BarChart3,
-  Bell,
-  BookOpen,
-  Building2,
-  CheckCircle,
-  ChevronDown,
-  CreditCard,
-  DollarSign,
-  Grid,
-  Image,
-  LayoutDashboard,
-  LogOut,
-  Menu,
-  Plane,
-  PlaneTakeoff,
-  Route,
-  Users,
-  X,
+    BarChart3,
+    BookOpen,
+    Building2,
+    CheckCircle,
+    ChevronDown,
+    CreditCard,
+    DollarSign,
+    Grid,
+    Image,
+    LayoutDashboard,
+    LogOut,
+    Menu,
+    Plane,
+    PlaneTakeoff,
+    Route,
+    Tag,
+    Users,
+    X
 } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -79,6 +79,11 @@ const AdminLayout = ({ children }) => {
       name: 'Quản lý Thanh toán',
       path: '/admin/payments',
       icon: CreditCard,
+    },
+    {
+      name: 'Mã Thanh toán',
+      path: '/admin/payment-codes',
+      icon: Tag,
     },
    
     {

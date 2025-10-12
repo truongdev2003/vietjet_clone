@@ -2,6 +2,7 @@ const User = require('../models/User');
 const Booking = require('../models/Booking');
 const Flight = require('../models/Flight');
 const Payment = require('../models/Payment');
+const PaymentCode = require('../models/PaymentCode');
 const { Notification } = require('../models/Additional');
 const NotificationController = require('./notificationController');
 const { asyncHandler, AppError } = require('../utils/errorHandler');
@@ -583,30 +584,77 @@ class AdminController {
 
   // Helper methods for reports
   static async getRevenueReport(period) {
-    const groupBy = this.getGroupByPeriod(period, '$status.timeline.completed');
+    const dateRange = this.getDateRange(period);
+    const groupBy = this.getGroupByPeriod(period, '$status.timeline.initiated');
+    
+    const matchStage = {};
+    
+    // Filter theo timeline.initiated (khi payment được tạo)
+    if (dateRange) {
+      matchStage['status.timeline.initiated'] = dateRange;
+    }
     
     return await Payment.aggregate([
-      { 
-        $match: { 
-          'status.overall': { $in: ['paid', 'completed'] }
-        } 
-      },
+      { $match: matchStage },
       {
         $group: {
           _id: groupBy,
-          totalRevenue: { $sum: '$amount.total' },
+          totalRevenue: { 
+            $sum: { 
+              $cond: [
+                { $in: ['$status.overall', ['paid', 'completed']] }, 
+                '$amount.total', 
+                0 
+              ] 
+            } 
+          },
+          pendingRevenue: { 
+            $sum: { 
+              $cond: [
+                { $eq: ['$status.overall', 'pending'] }, 
+                '$amount.total', 
+                0 
+              ] 
+            } 
+          },
           totalTransactions: { $sum: 1 },
+          paidTransactions: {
+            $sum: { 
+              $cond: [
+                { $in: ['$status.overall', ['paid', 'completed']] }, 
+                1, 
+                0 
+              ] 
+            }
+          },
+          pendingTransactions: {
+            $sum: { 
+              $cond: [
+                { $eq: ['$status.overall', 'pending'] }, 
+                1, 
+                0 
+              ] 
+            }
+          },
           avgTransactionValue: { $avg: '$amount.total' }
         }
       },
-      { $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 } }
+      { $sort: { '_id.year': -1, '_id.month': -1, '_id.day': -1 } },
+      { $limit: 50 }
     ]);
   }
 
   static async getBookingReport(period) {
-    const groupBy = this.getGroupByPeriod(period);
+    const dateRange = this.getDateRange(period);
+    const groupBy = this.getGroupByPeriod(period, '$createdAt');
+    
+    const matchStage = {};
+    if (dateRange) {
+      matchStage.createdAt = dateRange;
+    }
     
     return await Booking.aggregate([
+      { $match: matchStage },
       {
         $group: {
           _id: groupBy,
@@ -620,14 +668,22 @@ class AdminController {
           totalRevenue: { $sum: '$payment.totalAmount' }
         }
       },
-      { $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 } }
+      { $sort: { '_id.year': -1, '_id.month': -1, '_id.day': -1 } },
+      { $limit: 50 }
     ]);
   }
 
   static async getUserReport(period) {
-    const groupBy = this.getGroupByPeriod(period);
+    const dateRange = this.getDateRange(period);
+    const groupBy = this.getGroupByPeriod(period, '$createdAt');
+    
+    const matchStage = {};
+    if (dateRange) {
+      matchStage.createdAt = dateRange;
+    }
     
     return await User.aggregate([
+      { $match: matchStage },
       {
         $group: {
           _id: groupBy,
@@ -637,14 +693,22 @@ class AdminController {
           }
         }
       },
-      { $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 } }
+      { $sort: { '_id.year': -1, '_id.month': -1, '_id.day': -1 } },
+      { $limit: 50 }
     ]);
   }
 
   static async getFlightReport(period) {
+    const dateRange = this.getDateRange(period);
     const groupBy = this.getGroupByPeriod(period, '$route.departure.time');
     
+    const matchStage = {};
+    if (dateRange) {
+      matchStage['route.departure.time'] = dateRange;
+    }
+    
     return await Flight.aggregate([
+      { $match: matchStage },
       {
         $group: {
           _id: groupBy,
@@ -660,8 +724,42 @@ class AdminController {
           }
         }
       },
-      { $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 } }
+      { $sort: { '_id.year': -1, '_id.month': -1, '_id.day': -1 } },
+      { $limit: 50 }
     ]);
+  }
+
+  // Lấy date range dựa trên period
+  static getDateRange(period) {
+    const now = new Date();
+    let startDate;
+
+    switch (period) {
+      case 'daily':
+        // 30 ngày gần nhất
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        break;
+      case 'weekly':
+        // 12 tuần gần nhất
+        startDate = new Date(now.getTime() - 12 * 7 * 24 * 60 * 60 * 1000);
+        break;
+      case 'monthly':
+        // 12 tháng gần nhất
+        startDate = new Date(now);
+        startDate.setMonth(now.getMonth() - 12);
+        break;
+      case 'yearly':
+        // 5 năm gần nhất
+        startDate = new Date(now);
+        startDate.setFullYear(now.getFullYear() - 5);
+        break;
+      default:
+        // Mặc định 12 tháng
+        startDate = new Date(now);
+        startDate.setMonth(now.getMonth() - 12);
+    }
+
+    return { $gte: startDate, $lte: now };
   }
 
   static getGroupByPeriod(period, dateField = '$status.timeline.initiated') {
@@ -705,6 +803,275 @@ class AdminController {
     await NotificationController.sendFlightUpdate(flightId, updateType, details);
 
     const response = ApiResponse.success(null, 'Gửi thông báo cập nhật chuyến bay thành công');
+    response.send(res);
+  });
+
+  // ==================== PAYMENT CODE MANAGEMENT ====================
+  
+  // Lấy danh sách payment codes
+  static getPaymentCodes = asyncHandler(async (req, res, next) => {
+    const {
+      page = 1,
+      limit = 20,
+      status,
+      search,
+      sortBy = 'createdAt',
+      sortOrder = 'desc'
+    } = req.query;
+
+    const query = {};
+
+    // Filter by status
+    if (status) {
+      query.status = status;
+    }
+
+    // Search by code or name
+    if (search) {
+      query.$or = [
+        { code: { $regex: search, $options: 'i' } },
+        { name: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    const skip = (page - 1) * limit;
+    const sort = { [sortBy]: sortOrder === 'desc' ? -1 : 1 };
+
+    const [paymentCodes, total] = await Promise.all([
+      PaymentCode.find(query)
+        .sort(sort)
+        .skip(skip)
+        .limit(parseInt(limit))
+        .populate('metadata.createdBy', 'name email')
+        .populate('metadata.updatedBy', 'name email')
+        .lean(),
+      PaymentCode.countDocuments(query)
+    ]);
+
+    const response = ApiResponse.success(
+      {
+        paymentCodes,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total,
+          pages: Math.ceil(total / limit)
+        }
+      },
+      'Lấy danh sách mã thanh toán thành công'
+    );
+    response.send(res);
+  });
+
+  // Lấy chi tiết payment code
+  static getPaymentCodeById = asyncHandler(async (req, res, next) => {
+    const { id } = req.params;
+
+    const paymentCode = await PaymentCode.findById(id)
+      .populate('metadata.createdBy', 'name email')
+      .populate('metadata.updatedBy', 'name email')
+      .populate('usedBy.user', 'name email')
+      .populate('usedBy.booking', 'reference');
+
+    if (!paymentCode) {
+      return next(new AppError('Không tìm thấy mã thanh toán', 404));
+    }
+
+    const response = ApiResponse.success(paymentCode, 'Lấy thông tin mã thanh toán thành công');
+    response.send(res);
+  });
+
+  // Tạo payment code mới
+  static createPaymentCode = asyncHandler(async (req, res, next) => {
+    const {
+      code,
+      name,
+      description,
+      discountType,
+      value,
+      minAmount,
+      maxDiscount,
+      startDate,
+      expiryDate,
+      usageLimit,
+      applicableFor
+    } = req.body;
+
+    // Validate required fields
+    if (!code || !name || !discountType || value === undefined || !expiryDate) {
+      return next(new AppError('Thiếu thông tin bắt buộc', 400));
+    }
+
+    // Validate expiry date
+    if (new Date(expiryDate) <= new Date()) {
+      return next(new AppError('Ngày hết hạn phải sau ngày hiện tại', 400));
+    }
+
+    // Check if code already exists
+    const existingCode = await PaymentCode.findOne({ code: code.toUpperCase() });
+    if (existingCode) {
+      return next(new AppError('Mã thanh toán đã tồn tại', 400));
+    }
+
+    // Create payment code
+    const paymentCode = await PaymentCode.create({
+      code: code.toUpperCase(),
+      name,
+      description,
+      discountType,
+      value,
+      minAmount: minAmount || 0,
+      maxDiscount,
+      startDate: startDate || Date.now(),
+      expiryDate,
+      usageLimit: usageLimit || { total: null, perUser: 1 },
+      applicableFor: applicableFor || {},
+      metadata: {
+        createdBy: req.user.id,
+        updatedBy: req.user.id
+      }
+    });
+
+    const response = ApiResponse.success(paymentCode, 'Tạo mã thanh toán thành công', 201);
+    response.send(res);
+  });
+
+  // Cập nhật payment code
+  static updatePaymentCode = asyncHandler(async (req, res, next) => {
+    const { id } = req.params;
+    const {
+      name,
+      description,
+      discountType,
+      value,
+      minAmount,
+      maxDiscount,
+      startDate,
+      expiryDate,
+      usageLimit,
+      applicableFor,
+      status
+    } = req.body;
+
+    const paymentCode = await PaymentCode.findById(id);
+    if (!paymentCode) {
+      return next(new AppError('Không tìm thấy mã thanh toán', 404));
+    }
+
+    // Update fields
+    if (name) paymentCode.name = name;
+    if (description !== undefined) paymentCode.description = description;
+    if (discountType) paymentCode.discountType = discountType;
+    if (value !== undefined) paymentCode.value = value;
+    if (minAmount !== undefined) paymentCode.minAmount = minAmount;
+    if (maxDiscount !== undefined) paymentCode.maxDiscount = maxDiscount;
+    if (startDate) paymentCode.startDate = startDate;
+    if (expiryDate) {
+      if (new Date(expiryDate) <= new Date() && status !== 'expired') {
+        return next(new AppError('Ngày hết hạn phải sau ngày hiện tại', 400));
+      }
+      paymentCode.expiryDate = expiryDate;
+    }
+    if (usageLimit) paymentCode.usageLimit = usageLimit;
+    if (applicableFor) paymentCode.applicableFor = applicableFor;
+    if (status) paymentCode.status = status;
+
+    paymentCode.metadata.updatedBy = req.user.id;
+    await paymentCode.save();
+
+    const response = ApiResponse.success(paymentCode, 'Cập nhật mã thanh toán thành công');
+    response.send(res);
+  });
+
+  // Xóa payment code
+  static deletePaymentCode = asyncHandler(async (req, res, next) => {
+    const { id } = req.params;
+
+    const paymentCode = await PaymentCode.findById(id);
+    if (!paymentCode) {
+      return next(new AppError('Không tìm thấy mã thanh toán', 404));
+    }
+
+    // Chỉ cho phép xóa nếu chưa được sử dụng
+    if (paymentCode.usedCount > 0) {
+      return next(new AppError('Không thể xóa mã đã được sử dụng. Vui lòng vô hiệu hóa thay thế.', 400));
+    }
+
+    await paymentCode.deleteOne();
+
+    const response = ApiResponse.success(null, 'Xóa mã thanh toán thành công');
+    response.send(res);
+  });
+
+  // Toggle payment code status
+  static togglePaymentCodeStatus = asyncHandler(async (req, res, next) => {
+    const { id } = req.params;
+
+    const paymentCode = await PaymentCode.findById(id);
+    if (!paymentCode) {
+      return next(new AppError('Không tìm thấy mã thanh toán', 404));
+    }
+
+    // Toggle between active and inactive
+    if (paymentCode.status === 'expired') {
+      return next(new AppError('Không thể kích hoạt mã đã hết hạn', 400));
+    }
+
+    paymentCode.status = paymentCode.status === 'active' ? 'inactive' : 'active';
+    paymentCode.metadata.updatedBy = req.user.id;
+    await paymentCode.save();
+
+    const response = ApiResponse.success(
+      paymentCode,
+      `${paymentCode.status === 'active' ? 'Kích hoạt' : 'Vô hiệu hóa'} mã thanh toán thành công`
+    );
+    response.send(res);
+  });
+
+  // Lấy thống kê payment codes
+  static getPaymentCodeStats = asyncHandler(async (req, res, next) => {
+    const [total, active, expired, inactive] = await Promise.all([
+      PaymentCode.countDocuments(),
+      PaymentCode.countDocuments({ status: 'active' }),
+      PaymentCode.countDocuments({ status: 'expired' }),
+      PaymentCode.countDocuments({ status: 'inactive' })
+    ]);
+
+    // Top 10 mã được sử dụng nhiều nhất
+    const topUsed = await PaymentCode.find()
+      .sort({ usedCount: -1 })
+      .limit(10)
+      .select('code name usedCount value discountType')
+      .lean();
+
+    // Tổng giảm giá đã áp dụng
+    const totalDiscountResult = await PaymentCode.aggregate([
+      {
+        $unwind: '$usedBy'
+      },
+      {
+        $group: {
+          _id: null,
+          totalDiscount: { $sum: '$usedBy.discountAmount' }
+        }
+      }
+    ]);
+
+    const totalDiscount = totalDiscountResult[0]?.totalDiscount || 0;
+
+    const response = ApiResponse.success(
+      {
+        counts: {
+          total,
+          active,
+          expired,
+          inactive
+        },
+        topUsed,
+        totalDiscount
+      },
+      'Lấy thống kê mã thanh toán thành công'
+    );
     response.send(res);
   });
 }

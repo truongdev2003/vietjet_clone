@@ -11,13 +11,18 @@ import axiosInstance from '../config/axios';
  */
 export const validatePromoCode = async (code, amount, userId = null, routeId = null, airlineId = null) => {
   try {
-    const response = await axiosInstance.post('/promo/validate', {
+    // Chỉ gửi các field có giá trị hợp lệ
+    const payload = {
       code,
-      amount,
-      userId,
-      routeId,
-      airlineId
-    });
+      amount
+    };
+    
+    // Chỉ thêm các field optional nếu có giá trị
+    if (userId) payload.userId = userId;
+    if (routeId) payload.routeId = routeId;
+    if (airlineId) payload.airlineId = airlineId;
+    
+    const response = await axiosInstance.post('/promo/validate', payload);
     return response.data;
   } catch (error) {
     console.error('Validate promo code error:', error);
@@ -48,11 +53,15 @@ export const getPublicPromoCodes = async () => {
  */
 export const applyPromoCode = async (code, bookingId, userId = null) => {
   try {
-    const response = await axiosInstance.post('/promo/apply', {
+    const payload = {
       code,
-      bookingId,
-      userId
-    });
+      bookingId
+    };
+    
+    // Chỉ thêm userId nếu có giá trị
+    if (userId) payload.userId = userId;
+    
+    const response = await axiosInstance.post('/promo/apply', payload);
     return response.data;
   } catch (error) {
     console.error('Apply promo code error:', error);

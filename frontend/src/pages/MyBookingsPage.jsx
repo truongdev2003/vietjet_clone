@@ -1,4 +1,4 @@
-import { AlertCircle, Calendar, CheckCircle, ChevronDown, ChevronUp, Clock, Download, FileText, Filter, Plane, User, XCircle } from 'lucide-react';
+import { AlertCircle, Calendar, CheckCircle, ChevronDown, ChevronUp, Clock, CreditCard, Download, FileText, Filter, Plane, User, XCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Footer from '../components/Footer';
@@ -17,6 +17,8 @@ const MyBookingsPage = () => {
   const [error, setError] = useState('');
   const [filter, setFilter] = useState('all'); // all, upcoming, completed, cancelled
   const [expandedBookings, setExpandedBookings] = useState(new Set());
+  const [downloadingBookings, setDownloadingBookings] = useState(new Set()); // Track which bookings are being downloaded
+  const [retryingPayment, setRetryingPayment] = useState(new Set()); // Track which bookings are retrying payment
   const [pagination, setPagination] = useState({
     currentPage: 1,
     totalPages: 1,
@@ -107,8 +109,53 @@ const MyBookingsPage = () => {
     }
   };
 
-  const handleDownload = (bookingReference) => {
-    window.print();
+  const handleRetryPayment = async (bookingId, bookingReference) => {
+    if (!window.confirm('Bạn có muốn thanh toán lại cho booking này?')) {
+      return;
+    }
+
+    try {
+      setRetryingPayment(prev => new Set([...prev, bookingId]));
+      
+      const response = await bookingService.retryPayment(bookingId);
+      
+      // Redirect to payment URL
+      if (response.data?.paymentUrl) {
+        window.location.href = response.data.paymentUrl;
+      } else {
+        alert('Không thể tạo link thanh toán. Vui lòng thử lại sau.');
+      }
+    } catch (err) {
+      console.error('Retry payment error:', err);
+      alert('Không thể thanh toán lại: ' + (err.response?.data?.message || err.message || 'Lỗi không xác định'));
+    } finally {
+      setRetryingPayment(prev => {
+        const newSet = new Set([...prev]);
+        newSet.delete(bookingId);
+        return newSet;
+      });
+    }
+  };
+
+  const handleDownload = async (bookingReference) => {
+    if (!bookingReference) return;
+    
+    try {
+      // Add to downloading set
+      setDownloadingBookings(prev => new Set(prev).add(bookingReference));
+      
+      await bookingService.downloadBookingPDF(bookingReference);
+    } catch (err) {
+      console.error('Error downloading PDF:', err);
+      alert(err.response?.data?.error || 'Không thể tải vé điện tử. Vui lòng thử lại sau.');
+    } finally {
+      // Remove from downloading set
+      setDownloadingBookings(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(bookingReference);
+        return newSet;
+      });
+    }
   };
 
   const formatTime = (dateString) => {
@@ -443,15 +490,42 @@ const MyBookingsPage = () => {
 
                         {/* Action Buttons */}
                         <div className="booking-actions-expanded">
+                          {/* Nút Thanh toán lại cho booking pending/failed */}
+                          {(booking.status === 'pending' || booking.status === 'failed') && 
+                           booking.payment?.status !== 'paid' && (
+                            <button
+                              className="btn-action btn-retry-payment"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRetryPayment(booking._id, booking.bookingReference);
+                              }}
+                              disabled={retryingPayment.has(booking._id)}
+                              style={{
+                                opacity: retryingPayment.has(booking._id) ? 0.6 : 1,
+                                cursor: retryingPayment.has(booking._id) ? 'not-allowed' : 'pointer',
+                                background: '#FF6B00',
+                                color: 'white'
+                              }}
+                            >
+                              <CreditCard size={16} />
+                              {retryingPayment.has(booking._id) ? 'Đang xử lý...' : 'Thanh toán lại'}
+                            </button>
+                          )}
+
                           <button
                             className="btn-action btn-download"
                             onClick={(e) => {
                               e.stopPropagation();
                               handleDownload(booking.bookingReference);
                             }}
+                            disabled={downloadingBookings.has(booking.bookingReference)}
+                            style={{
+                              opacity: downloadingBookings.has(booking.bookingReference) ? 0.6 : 1,
+                              cursor: downloadingBookings.has(booking.bookingReference) ? 'not-allowed' : 'pointer'
+                            }}
                           >
                             <Download size={16} />
-                            Tải vé
+                            {downloadingBookings.has(booking.bookingReference) ? 'Đang tải...' : 'Tải vé'}
                           </button>
 
                           {canCheckIn(booking) && (

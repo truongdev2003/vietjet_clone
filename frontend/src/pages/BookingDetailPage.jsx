@@ -1,18 +1,24 @@
 import { AlertCircle, ArrowLeft, Check, Clock, Download, Mail, Phone, Plane, Printer, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import Footer from '../components/Footer';
 import Header from '../components/Header';
 import axiosInstance from '../config/axios';
+import bookingService from '../services/bookingService';
 
 const BookingDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [booking, setBooking] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  
+  // Get guest email from navigation state (when coming from lookup page)
+  const guestEmail = location.state?.guestEmail;
 
   useEffect(() => {
     fetchBookingDetail();
@@ -49,9 +55,25 @@ const BookingDetailPage = () => {
     }
   };
 
-  const handleDownloadTicket = () => {
-    // TODO: Implement PDF download
-    window.print();
+  const handleDownloadTicket = async () => {
+    if (!booking?.bookingReference) return;
+    
+    try {
+      setDownloading(true);
+      
+      // Use guest download if email is available (from lookup page)
+      if (guestEmail) {
+        await bookingService.downloadGuestBookingPDF(booking.bookingReference, guestEmail);
+      } else {
+        // Use authenticated download for logged-in users
+        await bookingService.downloadBookingPDF(booking.bookingReference);
+      }
+    } catch (err) {
+      console.error('Error downloading PDF:', err);
+      alert(err.response?.data?.error || 'Không thể tải vé điện tử. Vui lòng thử lại sau.');
+    } finally {
+      setDownloading(false);
+    }
   };
 
   const formatDate = (dateString) => {
@@ -292,6 +314,29 @@ const BookingDetailPage = () => {
                 </div>
               </div>
             </div>
+            
+            {/* Email Confirmation Status */}
+            {booking.notifications?.bookingConfirmation?.sent && (
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <div className="flex items-center gap-2 text-green-600">
+                  <Check size={18} className="flex-shrink-0" />
+                  <div className="text-sm">
+                    <span className="font-medium">Email xác nhận đã được gửi</span>
+                    {booking.notifications.bookingConfirmation.sentAt && (
+                      <span className="text-gray-500 ml-2">
+                        lúc {new Date(booking.notifications.bookingConfirmation.sentAt).toLocaleString('vi-VN', {
+                          day: '2-digit',
+                          month: '2-digit',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Payment Info */}
@@ -300,11 +345,35 @@ const BookingDetailPage = () => {
             
             <div className="space-y-3">
               <div className="flex justify-between">
-                <span className="text-gray-600">Tổng tiền vé</span>
-                <span className="font-semibold">{formatPrice(booking.payment?.totalAmount || 0)}</span>
+                <span className="text-gray-600">Giá vé cơ bản</span>
+                <span className="font-semibold">{formatPrice(booking.payment?.breakdown?.baseFare || 0)}</span>
               </div>
               
               <div className="flex justify-between">
+                <span className="text-gray-600">Thuế</span>
+                <span className="font-semibold">{formatPrice(booking.payment?.breakdown?.taxes || 0)}</span>
+              </div>
+              
+              <div className="flex justify-between">
+                <span className="text-gray-600">Phí dịch vụ</span>
+                <span className="font-semibold">{formatPrice(booking.payment?.breakdown?.fees || 0)}</span>
+              </div>
+              
+              {booking.payment?.breakdown?.services > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Dịch vụ bổ sung</span>
+                  <span className="font-semibold">{formatPrice(booking.payment?.breakdown?.services || 0)}</span>
+                </div>
+              )}
+              
+              {booking.payment?.breakdown?.discount > 0 && (
+                <div className="flex justify-between text-green-600">
+                  <span>Giảm giá</span>
+                  <span className="font-semibold">-{formatPrice(booking.payment?.breakdown?.discount || 0)}</span>
+                </div>
+              )}
+              
+              <div className="flex justify-between pt-3 border-t border-gray-200">
                 <span className="text-gray-600">Trạng thái</span>
                 <span className={`font-semibold ${
                   booking.payment?.status === 'paid' ? 'text-green-600' : 'text-yellow-600'
@@ -336,10 +405,11 @@ const BookingDetailPage = () => {
             <div className="grid md:grid-cols-2 gap-4">
               <button
                 onClick={handleDownloadTicket}
-                className="flex items-center justify-center gap-2 px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-semibold"
+                disabled={downloading}
+                className="flex items-center justify-center gap-2 px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-semibold"
               >
                 <Download size={20} />
-                Tải vé điện tử
+                {downloading ? 'Đang tải...' : 'Tải vé điện tử (PDF)'}
               </button>
               
               <button

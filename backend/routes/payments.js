@@ -16,6 +16,9 @@ router.post('/', validatePaymentCreate, PaymentController.createPayment);
 router.get('/my-payments', PaymentController.getUserPayments);
 router.get('/:paymentId', PaymentController.getPayment);
 
+// Payment code routes
+router.post('/validate-code', PaymentController.validatePaymentCode);
+
 // Admin routes
 router.post('/:paymentId/refund', authorize(['admin']), validateRefund, PaymentController.refundPayment);
 

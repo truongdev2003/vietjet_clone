@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Xác nhận hủy booking</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            background-color: #ffffff;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 3px solid #dc2626;
+            padding-bottom: 20px;
+        }
+        .logo {
+            color: #dc2626;
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .status-badge {
+            background-color: #ef4444;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 25px;
+            display: inline-block;
+            margin: 20px 0;
+            font-weight: bold;
+        }
+        .info-box {
+            background-color: #f9fafb;
+            border-left: 4px solid #dc2626;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .info-row:last-child {
+            border-bottom: none;
+        }
+        .info-label {
+            font-weight: 600;
+            color: #6b7280;
+        }
+        .info-value {
+            font-weight: 700;
+            color: #111827;
+            text-align: right;
+        }
+        .flight-details {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        .flight-route {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 15px 0;
+        }
+        .airport {
+            text-align: center;
+            flex: 1;
+        }
+        .airport-code {
+            font-size: 24px;
+            font-weight: bold;
+        }
+        .airport-name {
+            font-size: 12px;
+            opacity: 0.9;
+            margin-top: 5px;
+        }
+        .flight-arrow {
+            font-size: 20px;
+            margin: 0 10px;
+        }
+        .refund-section {
+            background-color: #ecfdf5;
+            border: 2px solid #10b981;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        .refund-section h3 {
+            color: #065f46;
+            margin-top: 0;
+        }
+        .refund-amount {
+            font-size: 32px;
+            font-weight: bold;
+            color: #059669;
+            text-align: center;
+            margin: 15px 0;
+        }
+        .refund-details {
+            background-color: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+        }
+        .timeline {
+            margin: 20px 0;
+        }
+        .timeline-item {
+            display: flex;
+            margin: 15px 0;
+            align-items: flex-start;
+        }
+        .timeline-icon {
+            width: 30px;
+            height: 30px;
+            background-color: #10b981;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            margin-right: 15px;
+            flex-shrink: 0;
+        }
+        .timeline-icon.pending {
+            background-color: #d1d5db;
+        }
+        .timeline-content {
+            flex: 1;
+        }
+        .timeline-title {
+            font-weight: bold;
+            color: #111827;
+        }
+        .timeline-desc {
+            font-size: 14px;
+            color: #6b7280;
+        }
+        .alert-box {
+            background-color: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        .alert-box h4 {
+            color: #92400e;
+            margin-top: 0;
+        }
+        .btn {
+            display: inline-block;
+            padding: 15px 30px;
+            background-color: #dc2626;
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 8px;
+            margin: 10px 5px;
+            font-weight: bold;
+            text-align: center;
+        }
+        .btn-secondary {
+            background-color: #6b7280;
+        }
+        .btn:hover {
+            opacity: 0.9;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+            color: #6b7280;
+            font-size: 14px;
+        }
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        .table th, .table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .table th {
+            background-color: #f3f4f6;
+            font-weight: 600;
+            color: #374151;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">✈️ VietJet Air</div>
+            <div class="status-badge">Đã hủy booking</div>
+        </div>
+
+        <p style="font-size: 18px;">
+            Xin chào <strong>{{passengerName}}</strong>,
+        </p>
+
+        <p>
+            Chúng tôi xác nhận rằng booking <strong>{{bookingReference}}</strong> của bạn đã được hủy thành công.
+        </p>
+
+        <!-- Thông tin booking -->
+        <div class="info-box">
+            <div class="info-row">
+                <span class="info-label">Mã booking:</span>
+                <span class="info-value">{{bookingReference}}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Ngày hủy:</span>
+                <span class="info-value">{{cancellationDate}}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Lý do hủy:</span>
+                <span class="info-value">{{cancellationReason}}</span>
+            </div>
+            {{#if cancellationNote}}
+            <div class="info-row">
+                <span class="info-label">Ghi chú:</span>
+                <span class="info-value">{{cancellationNote}}</span>
+            </div>
+            {{/if}}
+        </div>
+
+        <!-- Chi tiết chuyến bay -->
+        {{#each flights}}
+        <div class="flight-details">
+            <div style="text-align: center; font-size: 20px; font-weight: bold; margin-bottom: 15px;">
+                {{this.flightNumber}}
+            </div>
+            <div class="flight-route">
+                <div class="airport">
+                    <div class="airport-code">{{this.departure.code}}</div>
+                    <div class="airport-name">{{this.departure.name}}</div>
+                    <div style="margin-top: 8px;">{{this.departure.date}}</div>
+                    <div style="font-size: 18px; font-weight: bold;">{{this.departure.time}}</div>
+                </div>
+                <div class="flight-arrow">✈️</div>
+                <div class="airport">
+                    <div class="airport-code">{{this.arrival.code}}</div>
+                    <div class="airport-name">{{this.arrival.name}}</div>
+                    <div style="margin-top: 8px;">{{this.arrival.date}}</div>
+                    <div style="font-size: 18px; font-weight: bold;">{{this.arrival.time}}</div>
+                </div>
+            </div>
+            <div style="text-align: center; margin-top: 10px; font-size: 14px;">
+                Số hành khách: {{this.passengerCount}}
+            </div>
+        </div>
+        {{/each}}
+
+        <!-- Thông tin hoàn tiền -->
+        {{#if refund}}
+        <div class="refund-section">
+            <h3>💰 Thông tin hoàn tiền</h3>
+            <div class="refund-amount">
+                {{refund.amount}} {{refund.currency}}
+            </div>
+            <div style="text-align: center; color: #065f46; margin-bottom: 15px;">
+                Số tiền hoàn trả sau khi trừ phí hủy
+            </div>
+
+            <div class="refund-details">
+                <table class="table">
+                    <tr>
+                        <th>Mô tả</th>
+                        <th style="text-align: right;">Số tiền</th>
+                    </tr>
+                    <tr>
+                        <td>Tổng giá vé đã thanh toán</td>
+                        <td style="text-align: right;">{{refund.originalAmount}} {{refund.currency}}</td>
+                    </tr>
+                    <tr>
+                        <td>Phí hủy ({{refund.feePercentage}}%)</td>
+                        <td style="text-align: right; color: #dc2626;">-{{refund.cancellationFee}} {{refund.currency}}</td>
+                    </tr>
+                    <tr style="font-weight: bold; background-color: #f9fafb;">
+                        <td>Số tiền hoàn trả</td>
+                        <td style="text-align: right; color: #059669;">{{refund.amount}} {{refund.currency}}</td>
+                    </tr>
+                </table>
+
+                <div style="margin-top: 15px; padding: 10px; background-color: #f9fafb; border-radius: 5px;">
+                    <div style="font-weight: 600; margin-bottom: 5px;">Phương thức hoàn tiền:</div>
+                    <div>{{refund.method}}</div>
+                    {{#if refund.accountNumber}}
+                    <div style="margin-top: 5px;">Tài khoản: {{refund.accountNumber}}</div>
+                    {{/if}}
+                </div>
+            </div>
+
+            <!-- Timeline hoàn tiền -->
+            <div class="timeline">
+                <h4 style="color: #065f46; margin-top: 20px;">Tiến trình hoàn tiền:</h4>
+                <div class="timeline-item">
+                    <div class="timeline-icon">✓</div>
+                    <div class="timeline-content">
+                        <div class="timeline-title">Yêu cầu đã được xác nhận</div>
+                        <div class="timeline-desc">{{cancellationDate}}</div>
+                    </div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-icon pending">2</div>
+                    <div class="timeline-content">
+                        <div class="timeline-title">Đang xử lý hoàn tiền</div>
+                        <div class="timeline-desc">Dự kiến: {{refund.processingTime}}</div>
+                    </div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-icon pending">3</div>
+                    <div class="timeline-content">
+                        <div class="timeline-title">Tiền sẽ về tài khoản</div>
+                        <div class="timeline-desc">{{refund.expectedCompletionDate}}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {{else}}
+        <div class="alert-box">
+            <h4>⚠️ Lưu ý về hoàn tiền</h4>
+            <p>Vé của bạn thuộc loại không được hoàn tiền. Vui lòng liên hệ bộ phận chăm sóc khách hàng nếu có bất kỳ thắc mắc nào.</p>
+        </div>
+        {{/if}}
+
+        <!-- Thông tin quan trọng -->
+        <div class="alert-box">
+            <h4>📋 Điều khoản hủy vé</h4>
+            <ul style="margin: 10px 0; padding-left: 20px;">
+                <li>Thời gian hoàn tiền: 7-14 ngày làm việc tùy thuộc vào ngân hàng</li>
+                <li>Phí hủy được tính dựa trên thời gian hủy so với giờ khởi hành</li>
+                <li>Các dịch vụ bổ sung (hành lý, ghế, bữa ăn) sẽ được hoàn tiền riêng</li>
+                <li>Mã giảm giá/khuyến mãi đã sử dụng không được hoàn lại</li>
+            </ul>
+        </div>
+
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="{{bookNewFlightUrl}}" class="btn">🔍 Đặt vé mới</a>
+            <a href="{{viewBookingHistoryUrl}}" class="btn btn-secondary">📋 Lịch sử booking</a>
+        </div>
+
+        <div style="background-color: #e0f2fe; padding: 15px; border-radius: 8px; border-left: 4px solid #0284c7; margin: 20px 0;">
+            <p style="margin: 0; color: #0c4a6e;">
+                <strong>💡 Mẹo:</strong> Đặt vé mới trong vòng 24 giờ có thể được hưởng ưu đãi đặc biệt. Kiểm tra các chương trình khuyến mãi của chúng tôi!
+            </p>
+        </div>
+
+        <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0; text-align: center;">
+            <p style="margin: 0; color: #4b5563;">
+                <strong>Cần hỗ trợ về hoàn tiền?</strong><br>
+                Hotline: <strong>1900 1886</strong><br>
+                Email: <strong>refund@vietjet.com</strong><br>
+                Thời gian: 24/7
+            </p>
+        </div>
+
+        <div class="footer">
+            <p><strong>VietJet Air</strong></p>
+            <p>Cảm ơn bạn đã tin tướng và sử dụng dịch vụ của chúng tôi!</p>
+            <p>Hy vọng sẽ được phục vụ bạn trong chuyến bay tiếp theo.</p>
+            <p style="font-size: 12px; color: #9ca3af; margin-top: 15px;">
+                Email này được gửi tự động, vui lòng không trả lời.<br>
+                Truy cập <a href="{{process.env.FRONTEND_URL}}" style="color: #dc2626;">vietjetair.com</a> để biết thêm thông tin.
+            </p>
+        </div>
+    </div>
+</body>
+</html>

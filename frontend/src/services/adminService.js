@@ -381,6 +381,64 @@ const adminService = {
     const response = await api.patch(`/seats/flight/${flightId}/seat/${seatNumber}/block`, { isBlocked });
     return response.data;
   },
+
+  // ==================== PAYMENT CODE MANAGEMENT ====================
+  /**
+   * Get payment code statistics
+   */
+  getPaymentCodeStats: async () => {
+    const response = await api.get('/admin/payment-codes/stats');
+    return response.data;
+  },
+
+  /**
+   * Get all payment codes
+   */
+  getPaymentCodes: async (params = {}) => {
+    const response = await api.get('/admin/payment-codes', { params });
+    return response.data;
+  },
+
+  /**
+   * Get payment code detail by ID
+   */
+  getPaymentCodeById: async (id) => {
+    const response = await api.get(`/admin/payment-codes/${id}`);
+    return response.data;
+  },
+
+  /**
+   * Create new payment code
+   */
+  createPaymentCode: async (data) => {
+    const response = await api.post('/admin/payment-codes', data);
+    return response.data;
+  },
+
+  /**
+   * Update payment code
+   */
+  updatePaymentCode: async (id, data) => {
+    const response = await api.put(`/admin/payment-codes/${id}`, data);
+    return response.data;
+  },
+
+  /**
+   * Delete payment code
+   */
+  deletePaymentCode: async (id) => {
+    const response = await api.delete(`/admin/payment-codes/${id}`);
+    return response.data;
+  },
+
+  /**
+   * Toggle payment code status
+   */
+  togglePaymentCodeStatus: async (id) => {
+    const response = await api.patch(`/admin/payment-codes/${id}/toggle`);
+    return response.data;
+  },
 };
 
 export default adminService;
+

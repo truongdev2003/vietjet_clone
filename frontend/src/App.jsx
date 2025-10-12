@@ -35,6 +35,7 @@ import BookingManagement from "./pages/admin/BookingManagement";
 import CheckinManagement from "./pages/admin/CheckinManagement";
 import FareManagement from "./pages/admin/FareManagement";
 import FlightManagement from "./pages/admin/FlightManagement";
+import PaymentCodeManagement from "./pages/admin/PaymentCodeManagement";
 import PaymentManagement from "./pages/admin/PaymentManagement";
 import Reports from "./pages/admin/Reports";
 import RouteManagement from "./pages/admin/RouteManagement";
@@ -186,6 +187,15 @@ function AppContent() {
           element={
             <AdminRoute>
               <PaymentManagement />
+            </AdminRoute>
+          }
+        />
+
+        <Route
+          path="/admin/payment-codes"
+          element={
+            <AdminRoute>
+              <PaymentCodeManagement />
             </AdminRoute>
           }
         />

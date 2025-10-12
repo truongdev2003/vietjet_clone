@@ -70,8 +70,14 @@ const BookingLookupPage = () => {
           // Multiple bookings found
           navigate('/my-bookings', { state: { bookings: response.data.data } });
         } else {
-          // Single booking found
-          navigate(`/booking/${response.data.data._id}`, { state: { booking: response.data.data } });
+          // Single booking found - pass email for guest downloads
+          const guestEmail = formData.email || response.data.data.contactInfo?.email || response.data.data.passengers?.[0]?.email;
+          navigate(`/booking/${response.data.data._id}`, { 
+            state: { 
+              booking: response.data.data,
+              guestEmail: guestEmail // Pass email for guest PDF download
+            } 
+          });
         }
       } else {
         setErrors({ general: 'Không tìm thấy booking nào' });

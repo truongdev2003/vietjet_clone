@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Khuyến mãi đặc biệt - VietJet Air</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        .container {
+            background-color: #ffffff;
+            margin: 0;
+        }
+        .header {
+            background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+            color: white;
+            padding: 40px 20px;
+            text-align: center;
+        }
+        .logo {
+            font-size: 36px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .header-title {
+            font-size: 28px;
+            font-weight: bold;
+            margin: 15px 0;
+            text-transform: uppercase;
+        }
+        .header-subtitle {
+            font-size: 16px;
+            opacity: 0.95;
+        }
+        .banner {
+            background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+            color: #78350f;
+            padding: 30px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .banner::before {
+            content: "🎉";
+            position: absolute;
+            font-size: 100px;
+            opacity: 0.1;
+            top: -20px;
+            left: -20px;
+        }
+        .banner::after {
+            content: "✈️";
+            position: absolute;
+            font-size: 100px;
+            opacity: 0.1;
+            bottom: -20px;
+            right: -20px;
+        }
+        .discount-badge {
+            background-color: #dc2626;
+            color: white;
+            font-size: 48px;
+            font-weight: bold;
+            padding: 20px 40px;
+            border-radius: 15px;
+            display: inline-block;
+            box-shadow: 0 10px 25px rgba(220, 38, 38, 0.3);
+            transform: rotate(-5deg);
+            margin: 20px 0;
+        }
+        .promo-code-section {
+            background-color: #f9fafb;
+            padding: 30px;
+            text-align: center;
+        }
+        .promo-code {
+            background: linear-gradient(135deg, #111827 0%, #374151 100%);
+            color: white;
+            font-size: 32px;
+            font-weight: bold;
+            letter-spacing: 3px;
+            padding: 20px 30px;
+            border-radius: 10px;
+            display: inline-block;
+            border: 3px dashed #fbbf24;
+            margin: 15px 0;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        .copy-instruction {
+            color: #6b7280;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        .content {
+            padding: 30px;
+        }
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin: 25px 0;
+        }
+        .feature-item {
+            background-color: #fef3c7;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            border: 2px solid #fbbf24;
+        }
+        .feature-icon {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+        .feature-title {
+            font-weight: bold;
+            color: #92400e;
+            margin-bottom: 5px;
+        }
+        .feature-desc {
+            font-size: 14px;
+            color: #78350f;
+        }
+        .destination-section {
+            background-color: #ecfdf5;
+            padding: 25px;
+            border-radius: 10px;
+            margin: 25px 0;
+        }
+        .destination-title {
+            color: #065f46;
+            font-size: 20px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .destination-list {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+        .destination-item {
+            background-color: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            border: 2px solid #10b981;
+        }
+        .destination-item strong {
+            display: block;
+            color: #065f46;
+            font-size: 16px;
+        }
+        .destination-item span {
+            font-size: 12px;
+            color: #059669;
+        }
+        .terms-section {
+            background-color: #f3f4f6;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 25px 0;
+        }
+        .terms-section h4 {
+            color: #374151;
+            margin-top: 0;
+        }
+        .terms-section ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .terms-section li {
+            margin: 8px 0;
+            font-size: 14px;
+            color: #4b5563;
+        }
+        .countdown {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 10px;
+            text-align: center;
+            margin: 25px 0;
+        }
+        .countdown-title {
+            font-size: 18px;
+            margin-bottom: 15px;
+        }
+        .countdown-timer {
+            font-size: 36px;
+            font-weight: bold;
+            letter-spacing: 2px;
+        }
+        .countdown-label {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-top: 10px;
+        }
+        .cta-section {
+            text-align: center;
+            padding: 30px;
+            background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+        }
+        .btn {
+            display: inline-block;
+            padding: 18px 50px;
+            background-color: #fbbf24;
+            color: #78350f;
+            text-decoration: none;
+            border-radius: 50px;
+            font-weight: bold;
+            font-size: 18px;
+            box-shadow: 0 5px 20px rgba(251, 191, 36, 0.5);
+            transition: all 0.3s;
+        }
+        .btn:hover {
+            background-color: #f59e0b;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(251, 191, 36, 0.6);
+        }
+        .social-section {
+            background-color: #1f2937;
+            color: white;
+            padding: 25px;
+            text-align: center;
+        }
+        .social-icons {
+            margin: 20px 0;
+        }
+        .social-icon {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            background-color: #374151;
+            border-radius: 50%;
+            margin: 0 10px;
+            line-height: 40px;
+            text-align: center;
+            color: white;
+            text-decoration: none;
+            font-size: 20px;
+        }
+        .footer {
+            background-color: #111827;
+            color: #9ca3af;
+            padding: 25px;
+            text-align: center;
+            font-size: 14px;
+        }
+        .footer a {
+            color: #fbbf24;
+            text-decoration: none;
+        }
+        @media only screen and (max-width: 600px) {
+            .feature-grid {
+                grid-template-columns: 1fr;
+            }
+            .destination-list {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .discount-badge {
+                font-size: 36px;
+                padding: 15px 30px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="logo">✈️ VietJet Air</div>
+            <div class="header-title">{{promotionTitle}}</div>
+            <div class="header-subtitle">{{promotionSubtitle}}</div>
+        </div>
+
+        <!-- Banner giảm giá -->
+        <div class="banner">
+            <div style="font-size: 20px; font-weight: bold; margin-bottom: 10px;">
+                🎊 KHUYẾN MÃI ĐẶC BIỆT 🎊
+            </div>
+            <div class="discount-badge">
+                GIẢM {{discountPercent}}%
+            </div>
+            <div style="font-size: 16px; margin-top: 15px;">
+                {{promotionDescription}}
+            </div>
+        </div>
+
+        <!-- Mã khuyến mãi -->
+        <div class="promo-code-section">
+            <h3 style="color: #111827; margin-bottom: 10px;">Mã khuyến mãi của bạn</h3>
+            <div class="promo-code">{{promoCode}}</div>
+            <div class="copy-instruction">
+                📋 Sao chép mã và nhập khi thanh toán để được giảm giá
+            </div>
+        </div>
+
+        <!-- Content -->
+        <div class="content">
+            <h2 style="color: #dc2626; text-align: center; margin-bottom: 25px;">
+                {{contentTitle}}
+            </h2>
+
+            <!-- Ưu đãi nổi bật -->
+            <div class="feature-grid">
+                <div class="feature-item">
+                    <div class="feature-icon">💰</div>
+                    <div class="feature-title">Giảm tới {{maxDiscount}}</div>
+                    <div class="feature-desc">Trên tổng giá vé</div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">🎯</div>
+                    <div class="feature-title">{{applicableFlights}}</div>
+                    <div class="feature-desc">Chuyến bay áp dụng</div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">✈️</div>
+                    <div class="feature-title">Miễn phí</div>
+                    <div class="feature-desc">Đổi lịch 1 lần</div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">🎁</div>
+                    <div class="feature-title">Tặng kèm</div>
+                    <div class="feature-desc">7kg hành lý xách tay</div>
+                </div>
+            </div>
+
+            <!-- Điểm đến -->
+            {{#if destinations}}
+            <div class="destination-section">
+                <div class="destination-title">📍 Điểm đến áp dụng</div>
+                <div class="destination-list">
+                    {{#each destinations}}
+                    <div class="destination-item">
+                        <strong>{{this.code}}</strong>
+                        <span>{{this.name}}</span>
+                    </div>
+                    {{/each}}
+                </div>
+            </div>
+            {{/if}}
+
+            <!-- Countdown -->
+            <div class="countdown">
+                <div class="countdown-title">⏰ Chương trình kết thúc sau:</div>
+                <div class="countdown-timer">{{countdownTime}}</div>
+                <div class="countdown-label">{{validUntil}}</div>
+            </div>
+
+            <!-- Điều khoản -->
+            <div class="terms-section">
+                <h4>📋 Điều kiện áp dụng:</h4>
+                <ul>
+                    <li>Áp dụng cho vé khứ hồi và một chiều</li>
+                    <li>Thời gian bay: {{travelPeriod}}</li>
+                    <li>Thời gian đặt vé: {{bookingPeriod}}</li>
+                    <li>Số lượng vé có hạn, áp dụng theo nguyên tắc đặt trước được ưu tiên</li>
+                    <li>Không áp dụng đồng thời với các chương trình khuyến mãi khác</li>
+                    <li>Giá vé đã bao gồm thuế, phí sân bay và phụ phí nhiên liệu</li>
+                    {{#if additionalTerms}}
+                    {{#each additionalTerms}}
+                    <li>{{this}}</li>
+                    {{/each}}
+                    {{/if}}
+                </ul>
+            </div>
+        </div>
+
+        <!-- Call to Action -->
+        <div class="cta-section">
+            <div style="color: white; font-size: 22px; font-weight: bold; margin-bottom: 20px;">
+                🚀 Đừng bỏ lỡ cơ hội này!
+            </div>
+            <a href="{{bookingUrl}}" class="btn">ĐẶT VÉ NGAY</a>
+            <div style="color: white; font-size: 14px; margin-top: 15px; opacity: 0.9;">
+                Sử dụng mã <strong style="color: #fbbf24;">{{promoCode}}</strong> khi thanh toán
+            </div>
+        </div>
+
+        <!-- Social Media -->
+        <div class="social-section">
+            <div style="font-size: 18px; font-weight: bold; margin-bottom: 10px;">
+                Theo dõi chúng tôi để không bỏ lỡ ưu đãi!
+            </div>
+            <div class="social-icons">
+                <a href="{{facebookUrl}}" class="social-icon">f</a>
+                <a href="{{instagramUrl}}" class="social-icon">📷</a>
+                <a href="{{twitterUrl}}" class="social-icon">🐦</a>
+                <a href="{{youtubeUrl}}" class="social-icon">▶️</a>
+            </div>
+            <div style="margin-top: 15px; font-size: 14px; opacity: 0.9;">
+                Nhận thông báo ưu đãi mới nhất qua Facebook & Email
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong style="color: white;">VietJet Air - Bay là thích!</strong></p>
+            <p style="margin: 15px 0;">
+                Hotline: <strong>1900 1886</strong> | Email: <strong>promotion@vietjet.com</strong>
+            </p>
+            <p style="font-size: 12px; margin: 15px 0;">
+                Bạn nhận được email này vì đã đăng ký nhận thông tin khuyến mãi từ VietJet Air.<br>
+                Nếu không muốn nhận email này nữa, <a href="{{unsubscribeUrl}}">hủy đăng ký tại đây</a>.
+            </p>
+            <p style="font-size: 12px; color: #6b7280; margin-top: 15px;">
+                © 2025 VietJet Air. All rights reserved.<br>
+                <a href="{{process.env.FRONTEND_URL}}">vietjetair.com</a> | 
+                <a href="{{termsUrl}}">Điều khoản</a> | 
+                <a href="{{privacyUrl}}">Chính sách bảo mật</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html>

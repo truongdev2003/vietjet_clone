@@ -100,6 +100,22 @@ const paymentService = {
       throw error;
     }
   },
+
+  // Validate payment code
+  validatePaymentCode: async (code, amount, bookingId = null) => {
+    try {
+      const response = await api.post('/payments/validate-code', {
+        code,
+        amount,
+        bookingId
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error validating payment code:', error);
+      throw error;
+    }
+  }
 };
 
 export default paymentService;
+

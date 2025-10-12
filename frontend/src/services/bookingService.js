@@ -25,9 +25,13 @@ const bookingService = {
   },
 
   // Get booking by booking code
-  getBookingByCode: async (bookingCode, email) => {
+  getBookingByCode: async (bookingCode, email, lastName, documentNumber) => {
     try {
-      const params = email ? { email } : {};
+      const params = {};
+      if (email) params.email = email;
+      if (lastName) params.lastName = lastName;
+      if (documentNumber) params.documentNumber = documentNumber;
+      
       const response = await api.get(`/bookings/code/${bookingCode}`, { params });
       return response.data;
     } catch (error) {
@@ -120,6 +124,81 @@ const bookingService = {
       return response.data;
     } catch (error) {
       console.error('Error removing passenger:', error);
+      throw error;
+    }
+  },
+
+  // Download booking PDF (for authenticated user)
+  downloadBookingPDF: async (bookingReference) => {
+    try {
+      const response = await api.get(`/bookings/${bookingReference}/download-pdf`, {
+        responseType: 'blob' // Important for binary data
+      });
+      
+      // Create blob and download
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `VietJet-${bookingReference}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Error downloading booking PDF:', error);
+      throw error;
+    }
+  },
+
+  // Download booking PDF for guest (requires email)
+  downloadGuestBookingPDF: async (bookingReference, email) => {
+    try {
+      const response = await api.get(`/bookings/download/${bookingReference}/pdf`, {
+        params: { email },
+        responseType: 'blob'
+      });
+      
+      // Create blob and download
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `VietJet-${bookingReference}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Error downloading guest booking PDF:', error);
+      throw error;
+    }
+  },
+
+  // Resend booking confirmation email
+  resendBookingConfirmation: async (bookingReference, email) => {
+    try {
+      const response = await api.post(`/bookings/${bookingReference}/resend-confirmation`, {
+        email
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error resending booking confirmation:', error);
+      throw error;
+    }
+  },
+
+  // Retry payment for pending/failed booking
+  retryPayment: async (bookingId) => {
+    try {
+      const response = await api.post(`/bookings/${bookingId}/retry-payment`);
+      return response.data;
+    } catch (error) {
+      console.error('Error retrying payment:', error);
       throw error;
     }
   },

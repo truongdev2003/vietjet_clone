@@ -1,4 +1,4 @@
-import { Check, Download, Home, Mail, Plane, Printer } from 'lucide-react';
+import { Check, Download, Home, Mail, Plane, Printer, RefreshCw } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Footer from '../components/Footer';
@@ -12,6 +12,9 @@ const BookingSuccess = () => {
   const [booking, setBooking] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [downloading, setDownloading] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [resendSuccess, setResendSuccess] = useState(false);
 
   useEffect(() => {
     const fetchBookingDetails = async () => {
@@ -39,9 +42,38 @@ const BookingSuccess = () => {
     window.print();
   };
 
-  const handleDownloadETicket = () => {
-    // TODO: Implement e-ticket download
-    alert('Tính năng download vé điện tử đang được phát triển');
+  const handleDownloadETicket = async () => {
+    try {
+      setDownloading(true);
+      const bookingRef = booking.bookingReference || booking.bookingCode || booking._id;
+      await bookingService.downloadBookingPDF(bookingRef);
+    } catch (err) {
+      console.error('Error downloading ticket:', err);
+      alert(err.response?.data?.error || 'Không thể tải vé điện tử. Vui lòng thử lại sau.');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const handleResendEmail = async () => {
+    try {
+      setResending(true);
+      setResendSuccess(false);
+      const bookingRef = booking.bookingReference || booking.bookingCode || booking._id;
+      const email = booking.contactInfo?.email || booking.passengers?.[0]?.email;
+      
+      await bookingService.resendBookingConfirmation(bookingRef, email);
+      setResendSuccess(true);
+      
+      // Hide success message after 5 seconds
+      setTimeout(() => setResendSuccess(false), 5000);
+    } catch (err) {
+      console.error('Error resending email:', err);
+      const errorMsg = err.response?.data?.error || 'Không thể gửi lại email. Vui lòng thử lại sau.';
+      alert(errorMsg);
+    } finally {
+      setResending(false);
+    }
   };
 
   const handleCheckIn = () => {
@@ -138,12 +170,25 @@ const BookingSuccess = () => {
               <h2 className="booking-code">
                 {booking.bookingCode || booking._id?.slice(-8).toUpperCase()}
               </h2>
+              
+              {/* Email sent status */}
+              {booking.notifications?.bookingConfirmation?.sent && (
+                <div className="flex items-center gap-2 text-green-600 text-sm mt-2">
+                  <Check size={16} />
+                  <span>Email xác nhận đã gửi</span>
+                </div>
+              )}
             </div>
             <div className="flex gap-3">
               <button onClick={handlePrint} className="btn-icon" title="In">
                 <Printer size={20} />
               </button>
-              <button onClick={handleDownloadETicket} className="btn-icon" title="Tải xuống">
+              <button 
+                onClick={handleDownloadETicket} 
+                className="btn-icon" 
+                title={downloading ? "Đang tải..." : "Tải xuống vé điện tử"}
+                disabled={downloading}
+              >
                 <Download size={20} />
               </button>
             </div>
@@ -247,16 +292,32 @@ const BookingSuccess = () => {
           </h3>
           <div className="payment-summary">
             <div className="payment-row">
-              <span>Giá vé ({booking.passengers?.length || 0} hành khách)</span>
-              <span>{((booking.totalAmount || 0) * 0.85).toLocaleString('vi-VN')} VNĐ</span>
+              <span>Giá vé cơ bản</span>
+              <span>{(booking.payment?.breakdown?.baseFare || 0).toLocaleString('vi-VN')} VNĐ</span>
             </div>
             <div className="payment-row">
-              <span>Thuế và phí</span>
-              <span>{((booking.totalAmount || 0) * 0.15).toLocaleString('vi-VN')} VNĐ</span>
+              <span>Thuế</span>
+              <span>{(booking.payment?.breakdown?.taxes || 0).toLocaleString('vi-VN')} VNĐ</span>
             </div>
+            <div className="payment-row">
+              <span>Phí dịch vụ</span>
+              <span>{(booking.payment?.breakdown?.fees || 0).toLocaleString('vi-VN')} VNĐ</span>
+            </div>
+            {booking.payment?.breakdown?.services > 0 && (
+              <div className="payment-row">
+                <span>Dịch vụ bổ sung (chọn ghế, hành lý...)</span>
+                <span>{(booking.payment?.breakdown?.services || 0).toLocaleString('vi-VN')} VNĐ</span>
+              </div>
+            )}
+            {booking.payment?.breakdown?.discount > 0 && (
+              <div className="payment-row" style={{ color: '#059669' }}>
+                <span>Giảm giá</span>
+                <span>-{(booking.payment?.breakdown?.discount || 0).toLocaleString('vi-VN')} VNĐ</span>
+              </div>
+            )}
             <div className="payment-row payment-total">
               <span>Tổng cộng</span>
-              <span>{(booking.totalAmount || 0).toLocaleString('vi-VN')} VNĐ</span>
+              <span>{(booking.payment?.totalAmount || 0).toLocaleString('vi-VN')} VNĐ</span>
             </div>
           </div>
         </div>
@@ -286,6 +347,54 @@ const BookingSuccess = () => {
             <strong>{booking.contactInfo?.email || booking.passengers?.[0]?.email || 'của bạn'}</strong>.
             Vui lòng kiểm tra cả hộp thư spam nếu không thấy email.
           </p>
+          
+          {resendSuccess && (
+            <div style={{
+              marginTop: '12px',
+              padding: '10px 15px',
+              backgroundColor: '#d4edda',
+              color: '#155724',
+              borderRadius: '6px',
+              fontSize: '14px'
+            }}>
+              ✓ Email xác nhận đã được gửi lại thành công!
+            </div>
+          )}
+          
+          <button
+            onClick={handleResendEmail}
+            disabled={resending}
+            style={{
+              marginTop: '12px',
+              padding: '10px 20px',
+              backgroundColor: resending ? '#ccc' : '#fff',
+              color: resending ? '#666' : '#dc143c',
+              border: '2px solid #dc143c',
+              borderRadius: '8px',
+              fontSize: '14px',
+              fontWeight: '600',
+              cursor: resending ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              transition: 'all 0.3s ease'
+            }}
+            onMouseEnter={(e) => {
+              if (!resending) {
+                e.currentTarget.style.backgroundColor = '#dc143c';
+                e.currentTarget.style.color = '#fff';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!resending) {
+                e.currentTarget.style.backgroundColor = '#fff';
+                e.currentTarget.style.color = '#dc143c';
+              }
+            }}
+          >
+            <RefreshCw size={16} className={resending ? 'animate-spin' : ''} />
+            {resending ? 'Đang gửi...' : 'Gửi lại email xác nhận'}
+          </button>
         </div>
 
         <div className="info-card info-tips">

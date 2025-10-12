@@ -60,6 +60,10 @@ app.set('trust proxy', 1);
 // Connect to Database
 connectDB();
 
+// Setup Cron Jobs (after DB connection)
+const setupCronJobs = require('./services/scheduler');
+setupCronJobs();
+
 // Security Headers
 app.use(securityHeaders);
 
