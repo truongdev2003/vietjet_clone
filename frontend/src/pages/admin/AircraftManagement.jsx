@@ -1,12 +1,5 @@
+import { Check, Edit, PlaneIcon, Plus, Trash2, X } from 'lucide-react';
 import { useEffect, useState } from "react";
-import {
-    FaCheck,
-    FaEdit,
-    FaPlane,
-    FaPlus,
-    FaTimes,
-    FaTrash,
-} from "react-icons/fa";
 import AdminLayout from "../../components/AdminLayout";
 import aircraftService from "../../services/aircraftService";
 import airportService from "../../services/airportService";
@@ -19,8 +12,12 @@ const AircraftManagement = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [pagination, setPagination] = useState({});
-  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    pages: 0,
+  });
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState("create"); // 'create' or 'edit'
   const [selectedAircraft, setSelectedAircraft] = useState(null);
@@ -59,7 +56,7 @@ const AircraftManagement = () => {
     fetchAircraft();
     fetchAirports();
     fetchAirlines();
-  }, [currentPage, filters]);
+  }, [pagination.page, filters]);
 
   // Debug: Log formData changes
   useEffect(() => {
@@ -79,14 +76,25 @@ const AircraftManagement = () => {
     setError("");
     try {
       const params = {
-        page: currentPage,
-        limit: 10,
+        page: pagination.page,
+        limit: pagination.limit,
         ...filters,
       };
       const response = await aircraftService.getAllAircraft(params);
       console.log("Fetched aircraft data:", response.data);
-      setAircraft(response.data.aircraft);
-      setPagination(response.data.pagination);
+      
+      const aircraftData = response?.data || response;
+      setAircraft(aircraftData?.aircraft || []);
+      
+      // Cập nhật pagination từ backend
+      if (aircraftData?.pagination) {
+        setPagination(prev => ({
+          ...prev,
+          page: aircraftData.pagination.page || prev.page,
+          total: aircraftData.pagination.total || 0,
+          pages: aircraftData.pagination.totalPages || 0,
+        }));
+      }
     } catch (err) {
       setError(err.message || "Không thể tải danh sách máy bay");
     } finally {
@@ -119,7 +127,7 @@ const AircraftManagement = () => {
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
     setFilters((prev) => ({ ...prev, [name]: value }));
-    setCurrentPage(1);
+    setPagination(prev => ({ ...prev, page: 1 }));
   };
 
   const handleInputChange = (e) => {
@@ -355,14 +363,17 @@ const AircraftManagement = () => {
   return (
     <AdminLayout>
       <div className="page-header">
-        <h1>
-          <FaPlane /> Quản lý Máy bay
-        </h1>
+        <div>
+          <h1>
+            <PlaneIcon /> Quản lý Máy bay
+          </h1>
+          <p className="text-gray-600 mt-1">Tổng: {pagination.total} máy bay</p>
+        </div>
         <button
           className="btn btn-primary"
           onClick={() => handleOpenModal("create")}
         >
-          <FaPlus /> Thêm máy bay
+          <Plus size={18} className="mr-2" /> Thêm máy bay
         </button>
       </div>
 
@@ -465,14 +476,14 @@ const AircraftManagement = () => {
                             className="text-blue-600 hover:text-blue-900"
                             title="Chỉnh sửa"
                           >
-                            <FaEdit size={18} />
+                            <Edit size={18} />
                           </button>
                           <button
                             onClick={() => handleDelete(item._id)}
                             className="text-red-600 hover:text-red-900"
                             title="Xóa máy bay"
                           >
-                            <FaTrash size={18} />
+                            <Trash2 size={18} />
                           </button>
                         </div>
                       </td>
@@ -484,23 +495,133 @@ const AircraftManagement = () => {
           </div>
 
           {/* Pagination */}
-          {pagination.totalPages > 1 && (
-            <div className="pagination">
-              <button
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage((prev) => prev - 1)}
-              >
-                Trước
-              </button>
-              <span>
-                Trang {currentPage} / {pagination.totalPages}
-              </span>
-              <button
-                disabled={currentPage === pagination.totalPages}
-                onClick={() => setCurrentPage((prev) => prev + 1)}
-              >
-                Sau
-              </button>
+          {!loading && aircraft.length > 0  && (
+            <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6 mt-4">
+              <div className="flex-1 flex justify-between sm:hidden">
+                <button
+                  onClick={() => setPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
+                  disabled={pagination.page === 1}
+                  className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Trước
+                </button>
+                <button
+                  onClick={() => setPagination(prev => ({ ...prev, page: Math.min(pagination.pages, prev.page + 1) }))}
+                  disabled={pagination.page >= pagination.pages}
+                  className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Sau
+                </button>
+              </div>
+              <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm text-gray-700">
+                    Hiển thị <span className="font-medium">{(pagination.page - 1) * pagination.limit + 1}</span> đến{' '}
+                    <span className="font-medium">
+                      {Math.min(pagination.page * pagination.limit, pagination.total)}
+                    </span>{' '}
+                    trong <span className="font-medium">{pagination.total}</span> kết quả
+                  </p>
+                </div>
+                <div>
+                  <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                    {/* Previous button */}
+                    <button
+                      onClick={() => setPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
+                      disabled={pagination.page === 1}
+                      className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <span className="sr-only">Previous</span>
+                      <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                    
+                    {/* Page numbers */}
+                    {(() => {
+                      const pages = [];
+                      const maxVisible = 5;
+                      let startPage = Math.max(1, pagination.page - Math.floor(maxVisible / 2));
+                      let endPage = Math.min(pagination.pages, startPage + maxVisible - 1);
+                      
+                      if (endPage - startPage + 1 < maxVisible) {
+                        startPage = Math.max(1, endPage - maxVisible + 1);
+                      }
+                      
+                      // First page
+                      if (startPage > 1) {
+                        pages.push(
+                          <button
+                            key={1}
+                            onClick={() => setPagination(prev => ({ ...prev, page: 1 }))}
+                            className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50"
+                          >
+                            1
+                          </button>
+                        );
+                        if (startPage > 2) {
+                          pages.push(
+                            <span key="dots-start" className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
+                              ...
+                            </span>
+                          );
+                        }
+                      }
+                      
+                      // Page numbers
+                      for (let i = startPage; i <= endPage; i++) {
+                        pages.push(
+                          <button
+                            key={i}
+                            onClick={() => setPagination(prev => ({ ...prev, page: i }))}
+                            className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                              i === pagination.page
+                                ? 'z-10 bg-red-50 border-red-500 text-red-600'
+                                : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                            }`}
+                          >
+                            {i}
+                          </button>
+                        );
+                      }
+                      
+                      // Last page
+                      if (endPage < pagination.pages) {
+                        if (endPage < pagination.pages - 1) {
+                          pages.push(
+                            <span key="dots-end" className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
+                              ...
+                            </span>
+                          );
+                        }
+                        pages.push(
+                          <button
+                            key={pagination.pages}
+                            onClick={() => setPagination(prev => ({ ...prev, page: pagination.pages }))}
+                            className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50"
+                          >
+                            {pagination.pages}
+                          </button>
+                        );
+                      }
+                      
+                      return pages;
+                    })()}
+                    
+                    {/* Next button */}
+                    <button
+                      onClick={() => setPagination(prev => ({ ...prev, page: Math.min(pagination.pages, prev.page + 1) }))}
+                      disabled={pagination.page >= pagination.pages}
+                      className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <span className="sr-only">Next</span>
+                      <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                  </nav>
+                </div>
+              </div>
             </div>
           )}
         </>
@@ -517,7 +638,7 @@ const AircraftManagement = () => {
                   : "Cập nhật máy bay"}
               </h2>
               <button className="btn-close" onClick={handleCloseModal}>
-                <FaTimes />
+                <X size={20} />
               </button>
             </div>
             <form onSubmit={handleSubmit}>
@@ -757,7 +878,7 @@ const AircraftManagement = () => {
                   className="btn btn-primary"
                   disabled={loading}
                 >
-                  <FaCheck /> {modalMode === "create" ? "Tạo mới" : "Cập nhật"}
+                  <Check size={18} className="mr-2" /> {modalMode === "create" ? "Tạo mới" : "Cập nhật"}
                 </button>
               </div>
             </form>

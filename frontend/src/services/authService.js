@@ -67,7 +67,7 @@ const authService = {
   // Change password
   changePassword: async (oldPassword, newPassword, confirmPassword) => {
     const response = await api.post(AUTH_ENDPOINTS.CHANGE_PASSWORD, {
-      oldPassword,
+      currentPassword: oldPassword, // Backend expects 'currentPassword'
       newPassword,
       confirmPassword,
     });

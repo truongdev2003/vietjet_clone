@@ -72,15 +72,8 @@ const validateRegister = [
   body('password')
     .notEmpty()
     .withMessage('Mật khẩu là bắt buộc')
-    .isLength({ min: 8 })
-    .withMessage('Mật khẩu phải có ít nhất 8 ký tự')
-    .custom((value) => {
-      const validation = AuthUtils.validatePasswordStrength(value);
-      if (!validation.isValid) {
-        throw new Error(validation.errors.join(', '));
-      }
-      return true;
-    }),
+    .isLength({ min: 6 })
+    .withMessage('Mật khẩu phải có ít nhất 6 ký tự'),
     
   body('confirmPassword')
     .notEmpty()
@@ -133,15 +126,8 @@ const validateResetPassword = [
   body('password')
     .notEmpty()
     .withMessage('Mật khẩu mới là bắt buộc')
-    .isLength({ min: 8 })
-    .withMessage('Mật khẩu phải có ít nhất 8 ký tự')
-    .custom((value) => {
-      const validation = AuthUtils.validatePasswordStrength(value);
-      if (!validation.isValid) {
-        throw new Error(validation.errors.join(', '));
-      }
-      return true;
-    }),
+    .isLength({ min: 6 })
+    .withMessage('Mật khẩu phải có ít nhất 6 ký tự'),
     
   body('confirmPassword')
     .notEmpty()
@@ -163,15 +149,11 @@ const validateChangePassword = [
   body('newPassword')
     .notEmpty()
     .withMessage('Mật khẩu mới là bắt buộc')
-    .isLength({ min: 8 })
-    .withMessage('Mật khẩu phải có ít nhất 8 ký tự')
+    .isLength({ min: 6 })
+    .withMessage('Mật khẩu phải có ít nhất 6 ký tự')
     .custom((value, { req }) => {
       if (value === req.body.currentPassword) {
         throw new Error('Mật khẩu mới phải khác mật khẩu hiện tại');
-      }
-      const validation = AuthUtils.validatePasswordStrength(value);
-      if (!validation.isValid) {
-        throw new Error(validation.errors.join(', '));
       }
       return true;
     }),

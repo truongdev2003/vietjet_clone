@@ -1,8 +1,9 @@
-import axios from 'axios';
 import { AlertCircle, Check, CheckCircle, Clock, MapPin, Plane, Printer, User } from 'lucide-react';
 import { useState } from 'react';
 import Footer from '../components/Footer';
 import Header from '../components/Header';
+import bookingService from '../services/bookingService';
+import checkinService from '../services/checkinService';
 import '../styles/CheckIn.css';
 
 const CheckInPage = () => {
@@ -23,11 +24,12 @@ const CheckInPage = () => {
     setError('');
 
     try {
-      const response = await axios.get(
-        `http://localhost:5000/api/bookings/${searchData.bookingReference}`
+      // Get booking by code using bookingService
+      const bookingResponse = await bookingService.getBookingByCode(
+        searchData.bookingReference
       );
       
-      const bookingData = response.data;
+      const bookingData = bookingResponse.data || bookingResponse;
       
       // Verify last name
       const hasMatchingPassenger = bookingData.passengers.some(
@@ -87,12 +89,13 @@ const CheckInPage = () => {
         seatNumber: selectedSeats[passenger._id] || null
       }));
 
-      const response = await axios.post('http://localhost:5000/api/checkin', {
-        bookingReference: booking.bookingReference,
-        passengers: seatSelections
-      });
+      // Perform check-in using checkinService
+      const response = await checkinService.performCheckin(
+        booking.bookingReference,
+        seatSelections
+      );
 
-      setBoardingPasses(response.data.boardingPasses || []);
+      setBoardingPasses(response.data?.boardingPasses || response.boardingPasses || []);
       setStep(3);
     } catch (error) {
       console.error('Check-in error:', error);

@@ -559,6 +559,81 @@ class FlightController {
     const response = ApiResponse.success(flight, 'Cập nhật trạng thái chuyến bay thành công');
     response.send(res);
   });
+
+  // Get flight status (public endpoint - no authentication required)
+  static getFlightStatus = asyncHandler(async (req, res, next) => {
+    const { flightNumber, date } = req.query;
+
+    // Validate required fields
+    if (!flightNumber) {
+      return next(new AppError('Vui lòng cung cấp số hiệu chuyến bay', 400));
+    }
+
+    // Build query
+    const query = {
+      flightNumber: flightNumber.toUpperCase()
+    };
+
+    // Add date filter if provided
+    if (date) {
+      const searchDate = new Date(date);
+      const dateStart = new Date(searchDate);
+      dateStart.setUTCHours(0, 0, 0, 0);
+      const dateEnd = new Date(searchDate);
+      dateEnd.setUTCHours(23, 59, 59, 999);
+
+      query['route.departure.time'] = {
+        $gte: dateStart,
+        $lte: dateEnd
+      };
+    }
+
+    // Find flights
+    const flights = await Flight.find(query)
+      .populate('route.departure.airport', 'code name location')
+      .populate('route.arrival.airport', 'code name location')
+      .populate('airline', 'code name logo')
+      .sort({ 'route.departure.time': -1 })
+      .limit(10)
+      .lean();
+
+    if (flights.length === 0) {
+      return next(new AppError('Không tìm thấy chuyến bay', 404));
+    }
+
+    // Add inventory information
+    const flightsWithInventory = await Promise.all(
+      flights.map(async (flight) => {
+        const inventory = await Inventory.findOne({ flight: flight._id });
+        
+        let totalAvailable = 0;
+        if (inventory) {
+          totalAvailable = inventory.bookingClasses.reduce(
+            (total, bc) => total + (bc.authorized - bc.sold),
+            0
+          );
+        } else {
+          // Calculate from seats if no inventory
+          totalAvailable = Object.keys(flight.seats || {}).reduce((total, key) => {
+            return total + (flight.seats[key]?.available || 0);
+          }, 0);
+        }
+
+        return {
+          ...flight,
+          inventory: {
+            available: totalAvailable
+          }
+        };
+      })
+    );
+
+    const response = ApiResponse.success({
+      flights: flightsWithInventory
+    }, 'Lấy thông tin chuyến bay thành công');
+    
+    response.send(res);
+  });
 }
 
 module.exports = FlightController;

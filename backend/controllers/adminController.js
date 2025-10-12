@@ -69,14 +69,14 @@ class AdminController {
         createdAt: { $gte: todayStart, $lte: todayEnd }
       }),
       Payment.aggregate([
-        { $match: { 'status.overall': 'completed' } },
+        { $match: { 'status.overall': { $in: ['paid', 'completed'] } } },
         { $group: { _id: null, total: { $sum: '$amount.total' } } }
       ]).then(result => result[0]?.total || 0),
       Payment.aggregate([
         { 
           $match: { 
-            'status.overall': 'completed',
-            updatedAt: { $gte: startDate, $lte: endDate }
+            'status.overall': { $in: ['paid', 'completed'] },
+            'status.timeline.completed': { $gte: startDate, $lte: endDate }
           }
         },
         { $group: { _id: null, total: { $sum: '$amount.total' } } }
@@ -204,6 +204,7 @@ class AdminController {
       page = 1,
       limit = 20,
       search,
+      role,
       status,
       membershipLevel,
       sortBy = 'createdAt',
@@ -220,6 +221,10 @@ class AdminController {
         { 'contactInfo.email': { $regex: search, $options: 'i' } },
         { 'contactInfo.phone': { $regex: search, $options: 'i' } }
       ];
+    }
+
+    if (role) {
+      query.role = role;
     }
 
     if (status) {
@@ -578,16 +583,20 @@ class AdminController {
 
   // Helper methods for reports
   static async getRevenueReport(period) {
-    const groupBy = this.getGroupByPeriod(period);
+    const groupBy = this.getGroupByPeriod(period, '$status.timeline.completed');
     
     return await Payment.aggregate([
-      { $match: { status: 'completed' } },
+      { 
+        $match: { 
+          'status.overall': { $in: ['paid', 'completed'] }
+        } 
+      },
       {
         $group: {
           _id: groupBy,
-          totalRevenue: { $sum: '$amount' },
+          totalRevenue: { $sum: '$amount.total' },
           totalTransactions: { $sum: 1 },
-          avgTransactionValue: { $avg: '$amount' }
+          avgTransactionValue: { $avg: '$amount.total' }
         }
       },
       { $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 } }
@@ -655,7 +664,7 @@ class AdminController {
     ]);
   }
 
-  static getGroupByPeriod(period, dateField = '$createdAt') {
+  static getGroupByPeriod(period, dateField = '$status.timeline.initiated') {
     switch (period) {
       case 'daily':
         return {

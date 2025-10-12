@@ -3,10 +3,10 @@ import api from '../config/axios';
 
 const checkinService = {
   // Check booking eligibility for check-in
-  checkEligibility: async (bookingCode, lastName) => {
+  checkEligibility: async (bookingReference, lastName) => {
     try {
       const response = await api.post('/checkin/eligibility', {
-        bookingCode,
+        bookingReference,
         lastName,
       });
       return response.data;
@@ -16,35 +16,24 @@ const checkinService = {
     }
   },
 
-  // Start check-in process
-  startCheckin: async (bookingId, passengerIds) => {
+  // Perform check-in with seat selections
+  performCheckin: async (bookingReference, passengers) => {
     try {
-      const response = await api.post('/checkin/start', {
-        bookingId,
-        passengerIds,
+      const response = await api.post('/checkin/perform', {
+        bookingReference,
+        passengers, // Array of { passengerId, seatNumber }
       });
       return response.data;
     } catch (error) {
-      console.error('Error starting check-in:', error);
-      throw error;
-    }
-  },
-
-  // Complete check-in
-  completeCheckin: async (checkinId, checkinData) => {
-    try {
-      const response = await api.post(`/checkin/${checkinId}/complete`, checkinData);
-      return response.data;
-    } catch (error) {
-      console.error('Error completing check-in:', error);
+      console.error('Error performing check-in:', error);
       throw error;
     }
   },
 
   // Get check-in status
-  getCheckinStatus: async (bookingId) => {
+  getCheckinStatus: async (bookingReference) => {
     try {
-      const response = await api.get(`/checkin/status/${bookingId}`);
+      const response = await api.get(`/checkin/status/${bookingReference}`);
       return response.data;
     } catch (error) {
       console.error('Error fetching check-in status:', error);
@@ -53,9 +42,9 @@ const checkinService = {
   },
 
   // Get boarding pass
-  getBoardingPass: async (bookingId, passengerId) => {
+  getBoardingPass: async (bookingReference, passengerId) => {
     try {
-      const response = await api.get(`/checkin/boarding-pass/${bookingId}/${passengerId}`);
+      const response = await api.get(`/checkin/boarding-pass/${bookingReference}/${passengerId}`);
       return response.data;
     } catch (error) {
       console.error('Error fetching boarding pass:', error);
@@ -63,41 +52,27 @@ const checkinService = {
     }
   },
 
+  // Get mobile boarding pass
+  getMobileBoardingPass: async (bookingReference, passengerId) => {
+    try {
+      const response = await api.get(`/checkin/mobile-boarding-pass/${bookingReference}/${passengerId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching mobile boarding pass:', error);
+      throw error;
+    }
+  },
+
   // Download boarding pass (PDF)
-  downloadBoardingPass: async (bookingId, passengerId) => {
+  downloadBoardingPass: async (bookingReference, passengerId) => {
     try {
       const response = await api.get(
-        `/checkin/boarding-pass/${bookingId}/${passengerId}/download`,
+        `/checkin/boarding-pass/${bookingReference}/${passengerId}/download`,
         { responseType: 'blob' }
       );
       return response.data;
     } catch (error) {
       console.error('Error downloading boarding pass:', error);
-      throw error;
-    }
-  },
-
-  // Cancel check-in
-  cancelCheckin: async (checkinId) => {
-    try {
-      const response = await api.post(`/checkin/${checkinId}/cancel`);
-      return response.data;
-    } catch (error) {
-      console.error('Error canceling check-in:', error);
-      throw error;
-    }
-  },
-
-  // Select seat during check-in
-  selectSeat: async (checkinId, passengerId, seatNumber) => {
-    try {
-      const response = await api.post(`/checkin/${checkinId}/select-seat`, {
-        passengerId,
-        seatNumber,
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Error selecting seat:', error);
       throw error;
     }
   },

@@ -49,20 +49,29 @@ class PaymentGatewayService {
       // Tạo payment record
       const payment = await Payment.create({
         booking: bookingId,
-        amount: amount,
-        currency: 'VND',
-        gateway: {
-          provider: 'vnpay',
-          transactionId: vnp_TxnRef
+        user: booking.user, // Lưu thông tin user từ booking
+        paymentReference: vnp_TxnRef,
+        amount: {
+          total: amount,
+          currency: 'VND'
         },
-        method: {
+        paymentMethods: [{
           type: 'e_wallet',
           eWallet: {
             provider: 'vnpay',
             transactionId: vnp_TxnRef
           }
+        }],
+        gateway: {
+          provider: 'vnpay',
+          transactionId: vnp_TxnRef
         },
-        status: 'pending',
+        status: {
+          overall: 'pending',
+          timeline: {
+            initiated: new Date()
+          }
+        },
         expiresAt: new Date(Date.now() + 15 * 60 * 1000)
       });
 
@@ -211,20 +220,29 @@ class PaymentGatewayService {
       // Tạo payment record
       const payment = await Payment.create({
         booking: bookingId,
-        amount: amount,
-        currency: 'VND',
-        gateway: {
-          provider: 'zalopay',
-          transactionId: order.app_trans_id
+        user: booking.user, // Lưu thông tin user từ booking
+        paymentReference: order.app_trans_id,
+        amount: {
+          total: amount,
+          currency: 'VND'
         },
-        method: {
+        paymentMethods: [{
           type: 'e_wallet',
           eWallet: {
             provider: 'zalopay',
             transactionId: order.app_trans_id
           }
+        }],
+        gateway: {
+          provider: 'zalopay',
+          transactionId: order.app_trans_id
         },
-        status: 'pending',
+        status: {
+          overall: 'pending',
+          timeline: {
+            initiated: new Date()
+          }
+        },
         expiresAt: new Date(Date.now() + 15 * 60 * 1000)
       });
 
@@ -366,23 +384,29 @@ class PaymentGatewayService {
       // Tạo payment record theo đúng Payment schema
       const payment = await Payment.create({
         booking: bookingId,
+        user: booking.user, // Lưu thông tin user từ booking
         paymentReference: orderId, // Required field
         amount: {
           total: amount,           // Required nested field
           currency: 'VND'
         },
-        method: {
+        paymentMethods: [{
           type: 'e_wallet',        // Required nested field
           eWallet: {
             provider: 'momo',
             transactionId: orderId
           }
-        },
+        }],
         gateway: {
           provider: 'momo',
           transactionId: orderId
         },
-        status: 'pending',
+        status: {
+          overall: 'pending',
+          timeline: {
+            initiated: new Date()
+          }
+        },
         expiresAt: new Date(Date.now() + 15 * 60 * 1000)
       });
 

@@ -38,10 +38,14 @@ const BookingManagement = () => {
       };
       const response = await adminService.getBookings(params);
       setBookings(response.data.bookings || []);
+      
+      // Map backend pagination structure to frontend
+      const backendPagination = response.data.pagination || {};
       setPagination(prev => ({
         ...prev,
-        total: response.data.total || 0,
-        pages: response.data.pages || 0,
+        page: backendPagination.page || prev.page,
+        total: backendPagination.total || 0,
+        pages: backendPagination.pages || 0,
       }));
     } catch (err) {
       setError(err.response?.data?.message || 'Không thể tải danh sách bookings');
@@ -194,7 +198,10 @@ const BookingManagement = () => {
               type="date"
               className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
               value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
+              onChange={(e) => {
+                setDateFrom(e.target.value);
+                setPagination(prev => ({ ...prev, page: 1 }));
+              }}
               placeholder="Từ ngày"
             />
 
@@ -202,12 +209,18 @@ const BookingManagement = () => {
               type="date"
               className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
               value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
+              onChange={(e) => {
+                setDateTo(e.target.value);
+                setPagination(prev => ({ ...prev, page: 1 }));
+              }}
               placeholder="Đến ngày"
             />
 
             <button
-              onClick={loadBookings}
+              onClick={() => {
+                setPagination(prev => ({ ...prev, page: 1 }));
+                loadBookings();
+              }}
               className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center justify-center"
             >
               <Filter size={20} className="mr-2" />
@@ -364,23 +377,101 @@ const BookingManagement = () => {
                   </p>
                 </div>
                 <div>
-                  <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
-                    {Array.from({ length: Math.min(pagination.pages, 5) }, (_, i) => {
-                      const page = i + 1;
-                      return (
-                        <button
-                          key={page}
-                          onClick={() => setPagination(prev => ({ ...prev, page }))}
-                          className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                            page === pagination.page
-                              ? 'z-10 bg-red-50 border-red-500 text-red-600'
-                              : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
-                          }`}
-                        >
-                          {page}
-                        </button>
-                      );
-                    })}
+                  <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                    {/* Previous Button */}
+                    <button
+                      onClick={() => setPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
+                      disabled={pagination.page === 1}
+                      className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <span className="sr-only">Previous</span>
+                      <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+
+                    {/* Page Numbers */}
+                    {(() => {
+                      const pages = [];
+                      const maxVisible = 5;
+                      let startPage = Math.max(1, pagination.page - Math.floor(maxVisible / 2));
+                      let endPage = Math.min(pagination.pages, startPage + maxVisible - 1);
+                      
+                      if (endPage - startPage + 1 < maxVisible) {
+                        startPage = Math.max(1, endPage - maxVisible + 1);
+                      }
+
+                      // First page
+                      if (startPage > 1) {
+                        pages.push(
+                          <button
+                            key={1}
+                            onClick={() => setPagination(prev => ({ ...prev, page: 1 }))}
+                            className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50"
+                          >
+                            1
+                          </button>
+                        );
+                        if (startPage > 2) {
+                          pages.push(
+                            <span key="ellipsis1" className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
+                              ...
+                            </span>
+                          );
+                        }
+                      }
+
+                      // Visible pages
+                      for (let i = startPage; i <= endPage; i++) {
+                        pages.push(
+                          <button
+                            key={i}
+                            onClick={() => setPagination(prev => ({ ...prev, page: i }))}
+                            className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                              i === pagination.page
+                                ? 'z-10 bg-red-50 border-red-500 text-red-600'
+                                : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                            }`}
+                          >
+                            {i}
+                          </button>
+                        );
+                      }
+
+                      // Last page
+                      if (endPage < pagination.pages) {
+                        if (endPage < pagination.pages - 1) {
+                          pages.push(
+                            <span key="ellipsis2" className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
+                              ...
+                            </span>
+                          );
+                        }
+                        pages.push(
+                          <button
+                            key={pagination.pages}
+                            onClick={() => setPagination(prev => ({ ...prev, page: pagination.pages }))}
+                            className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50"
+                          >
+                            {pagination.pages}
+                          </button>
+                        );
+                      }
+
+                      return pages;
+                    })()}
+
+                    {/* Next Button */}
+                    <button
+                      onClick={() => setPagination(prev => ({ ...prev, page: Math.min(pagination.pages, prev.page + 1) }))}
+                      disabled={pagination.page >= pagination.pages}
+                      className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <span className="sr-only">Next</span>
+                      <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                      </svg>
+                    </button>
                   </nav>
                 </div>
               </div>

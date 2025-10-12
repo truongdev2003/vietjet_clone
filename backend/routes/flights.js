@@ -8,6 +8,7 @@ const router = express.Router();
 // Public routes
 router.get('/search', validateFlightSearch, FlightController.searchFlights);
 router.post('/search', validateFlightSearch, FlightController.searchFlights);
+router.get('/status', FlightController.getFlightStatus); // New public endpoint for flight status
 router.get('/:flightId', FlightController.getFlightDetails);
 
 // Protected routes (require authentication)

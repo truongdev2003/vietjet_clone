@@ -25,9 +25,10 @@ const bookingService = {
   },
 
   // Get booking by booking code
-  getBookingByCode: async (bookingCode) => {
+  getBookingByCode: async (bookingCode, email) => {
     try {
-      const response = await api.get(`/bookings/code/${bookingCode}`);
+      const params = email ? { email } : {};
+      const response = await api.get(`/bookings/code/${bookingCode}`, { params });
       return response.data;
     } catch (error) {
       console.error('Error fetching booking by code:', error);
@@ -64,6 +65,17 @@ const bookingService = {
       return response.data;
     } catch (error) {
       console.error('Error canceling booking:', error);
+      throw error;
+    }
+  },
+
+  // Online check-in for booking
+  onlineCheckin: async (bookingId) => {
+    try {
+      const response = await api.post(`/bookings/${bookingId}/checkin`);
+      return response.data;
+    } catch (error) {
+      console.error('Error performing online check-in:', error);
       throw error;
     }
   },

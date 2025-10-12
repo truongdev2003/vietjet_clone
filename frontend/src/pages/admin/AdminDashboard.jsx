@@ -37,7 +37,7 @@ const AdminDashboard = () => {
     try {
       const response = await adminService.getDashboard();
       console.log('Dashboard data:', response?.data?.overview);
-      const overview = response?.data?.overview ||   {};
+      const overview = response?.data?.overview || {};
       
       // Map backend data structure to frontend stats
       setStats({
@@ -51,7 +51,7 @@ const AdminDashboard = () => {
         bookingGrowth: parseFloat(overview.bookings?.growth) || 0,
         activeFlights: overview.flights?.active || 0,
       });
-      setRecentBookings(data.recentBookings || []);
+      setRecentBookings(response?.data?.recentBookings || []);
     } catch (err) {
       setError(err.response?.data?.message || 'Không thể tải dữ liệu dashboard');
       // Mock data for demo

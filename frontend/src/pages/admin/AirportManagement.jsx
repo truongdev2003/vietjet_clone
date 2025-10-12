@@ -12,6 +12,12 @@ function AirportManagement() {
   const [editingAirport, setEditingAirport] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCountry, setFilterCountry] = useState("");
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    pages: 0,
+  });
 
   const [formData, setFormData] = useState({
     code: "",
@@ -28,13 +34,33 @@ function AirportManagement() {
 
   useEffect(() => {
     loadAirports();
-  }, []);
+  }, [pagination.page, filterCountry]);
 
   const loadAirports = async () => {
     try {
       setLoading(true);
-      const response = await airportService.getAllAirports({ limit: 100 });
-      setAirports(response?.data?.airports || []);
+      const params = {
+        page: pagination.page,
+        limit: pagination.limit,
+        search: searchTerm,
+        country: filterCountry,
+      };
+      const response = await airportService.getAllAirports(params);
+      
+      // Backend trả về: { airports: [...], pagination: {...} }
+      const airportData = response?.data || response;
+      setAirports(airportData?.airports || []);
+      
+      // Cập nhật pagination từ backend
+      if (airportData?.pagination) {
+        setPagination(prev => ({
+          ...prev,
+          page: airportData.pagination.currentPage || prev.page,
+          total: airportData.pagination.totalItems || 0,
+          pages: airportData.pagination.totalPages || 0,
+        }));
+      }
+      
       setError(null);
     } catch (err) {
       setError(err.message || "Không thể tải danh sách sân bay");
@@ -171,29 +197,12 @@ function AirportManagement() {
     });
   };
 
-  const filteredAirports = airports.filter((airport) => {
-    const airportName =
-      airport.name?.vi || airport.name?.en || airport.name || "";
-    const airportCode = airport.code?.iata || airport.code || "";
-    const airportCity =
-      airport.location?.city?.vi ||
-      airport.location?.city?.en ||
-      airport.city ||
-      "";
-    const airportCountry =
-      airport.location?.country?.vi ||
-      airport.location?.country?.en ||
-      airport.country ||
-      "";
+  const handleSearch = () => {
+    setPagination(prev => ({ ...prev, page: 1 }));
+    loadAirports();
+  };
 
-    const matchesSearch =
-      airportName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      airportCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      airportCity.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCountry = !filterCountry || airportCountry === filterCountry;
-    return matchesSearch && matchesCountry;
-  });
-
+  // Lấy danh sách quốc gia từ airports hiện tại
   const countries = [
     ...new Set(
       airports.map(
@@ -233,7 +242,10 @@ function AirportManagement() {
   return (
     <AdminLayout>
       <div className="page-header">
-        <h1>Quản Lý Sân Bay</h1>
+        <div>
+          <h1>Quản Lý Sân Bay</h1>
+          <p className="text-gray-600 mt-1">Tổng: {pagination.total} sân bay</p>
+        </div>
         <button className="btn btn-primary" onClick={() => setShowModal(true)}>
           + Thêm Sân Bay Mới
         </button>
@@ -247,11 +259,19 @@ function AirportManagement() {
           placeholder="Tìm kiếm sân bay..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
+          onKeyPress={(e) => {
+            if (e.key === 'Enter') {
+              handleSearch();
+            }
+          }}
           className="search-input"
         />
         <select
           value={filterCountry}
-          onChange={(e) => setFilterCountry(e.target.value)}
+          onChange={(e) => {
+            setFilterCountry(e.target.value);
+            setPagination(prev => ({ ...prev, page: 1 }));
+          }}
           className="filter-select"
         >
           <option value="">Tất cả quốc gia</option>
@@ -261,6 +281,9 @@ function AirportManagement() {
             </option>
           ))}
         </select>
+        <button className="btn btn-primary" onClick={handleSearch}>
+          Tìm kiếm
+        </button>
       </div>
 
       <div className="airports-table">
@@ -278,7 +301,7 @@ function AirportManagement() {
             </tr>
           </thead>
           <tbody>
-            {filteredAirports.map((airport) => (
+            {airports.map((airport) => (
               <tr key={airport._id}>
                 <td>
                   <strong>{renderCode(airport.code)}</strong>
@@ -321,6 +344,143 @@ function AirportManagement() {
             ))}
           </tbody>
         </table>
+
+        {/* Pagination */}
+        {!loading && airports.length > 0 && (
+          <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6 mt-4">
+            <div className="flex-1 flex justify-between sm:hidden">
+              <button
+                onClick={() => setPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
+                disabled={pagination.page === 1}
+                className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Trước
+              </button>
+              <button
+                onClick={() => setPagination(prev => ({ ...prev, page: Math.min(pagination.pages, prev.page + 1) }))}
+                disabled={pagination.page >= pagination.pages}
+                className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Sau
+              </button>
+            </div>
+            <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm text-gray-700">
+                  Hiển thị <span className="font-medium">{(pagination.page - 1) * pagination.limit + 1}</span> đến{' '}
+                  <span className="font-medium">
+                    {Math.min(pagination.page * pagination.limit, pagination.total)}
+                  </span>{' '}
+                  trong <span className="font-medium">{pagination.total}</span> kết quả
+                </p>
+              </div>
+              <div>
+                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                  {/* Previous button */}
+                  <button
+                    onClick={() => setPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
+                    disabled={pagination.page === 1}
+                    className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <span className="sr-only">Previous</span>
+                    <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                  
+                  {/* Page numbers */}
+                  {(() => {
+                    const pages = [];
+                    const maxVisible = 5;
+                    let startPage = Math.max(1, pagination.page - Math.floor(maxVisible / 2));
+                    let endPage = Math.min(pagination.pages, startPage + maxVisible - 1);
+                    
+                    if (endPage - startPage + 1 < maxVisible) {
+                      startPage = Math.max(1, endPage - maxVisible + 1);
+                    }
+                    
+                    // First page
+                    if (startPage > 1) {
+                      pages.push(
+                        <button
+                          key={1}
+                          onClick={() => setPagination(prev => ({ ...prev, page: 1 }))}
+                          className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50"
+                        >
+                          1
+                        </button>
+                      );
+                      if (startPage > 2) {
+                        pages.push(
+                          <span key="dots-start" className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
+                            ...
+                          </span>
+                        );
+                      }
+                    }
+                    
+                    // Page numbers
+                    for (let i = startPage; i <= endPage; i++) {
+                      pages.push(
+                        <button
+                          key={i}
+                          onClick={() => setPagination(prev => ({ ...prev, page: i }))}
+                          className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                            i === pagination.page
+                              ? 'z-10 bg-red-50 border-red-500 text-red-600'
+                              : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                          }`}
+                        >
+                          {i}
+                        </button>
+                      );
+                    }
+                    
+                    // Last page
+                    if (endPage < pagination.pages) {
+                      if (endPage < pagination.pages - 1) {
+                        pages.push(
+                          <span key="dots-end" className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
+                            ...
+                          </span>
+                        );
+                      }
+                      pages.push(
+                        <button
+                          key={pagination.pages}
+                          onClick={() => setPagination(prev => ({ ...prev, page: pagination.pages }))}
+                          className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50"
+                        >
+                          {pagination.pages}
+                        </button>
+                      );
+                    }
+                    
+                    return pages;
+                  })()}
+                  
+                  {/* Next button */}
+                  <button
+                    onClick={() => setPagination(prev => ({ ...prev, page: Math.min(pagination.pages, prev.page + 1) }))}
+                    disabled={pagination.page >= pagination.pages}
+                    className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <span className="sr-only">Next</span>
+                    <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                </nav>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {!loading && airports.length === 0 && (
+          <div className="text-center py-12">
+            <p className="text-gray-500">Không tìm thấy sân bay nào</p>
+          </div>
+        )}
       </div>
 
       {showModal && (

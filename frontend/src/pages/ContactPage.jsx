@@ -1,4 +1,3 @@
-import axios from "axios";
 import {
     ChevronDown,
     Mail,
@@ -10,6 +9,7 @@ import {
 import { useState } from "react";
 import Footer from "../components/Footer";
 import Header from "../components/Header";
+import contactService from "../services/contactService";
 import "../styles/Contact.css";
 
 const ContactPage = () => {
@@ -93,7 +93,8 @@ const ContactPage = () => {
     setSuccess(false);
 
     try {
-      await axios.post("http://localhost:5000/api/contact", formData);
+      // Use contactService to submit form
+      await contactService.submitContactForm(formData);
       setSuccess(true);
       setFormData({
         name: "",
@@ -104,7 +105,7 @@ const ContactPage = () => {
       });
     } catch (error) {
       console.error("Contact form error:", error);
-      setError("Có lỗi xảy ra. Vui lòng thử lại sau.");
+      setError(error.response?.data?.message || "Có lỗi xảy ra. Vui lòng thử lại sau.");
     } finally {
       setLoading(false);
     }

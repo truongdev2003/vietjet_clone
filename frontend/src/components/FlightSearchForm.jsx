@@ -246,7 +246,7 @@ const FlightSearchForm = () => {
         onSubmit={handleSubmit}
         className="space-y-4"
       >
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 relative">
           {/* From Airport */}
           <div className="relative">
             <AirportAutocomplete
@@ -258,6 +258,15 @@ const FlightSearchForm = () => {
             />
           </div>
 
+          {/* Swap button - positioned between inputs */}
+          <button 
+            type="button" 
+            onClick={handleSwapCities}
+            className="absolute left-1/2 top-[60%] transform -translate-x-1/2 -translate-y-1/2 bg-red-600 border-none rounded-full w-12 h-12 hidden md:flex items-center justify-center text-white cursor-pointer transition-all duration-300 hover:bg-red-700 hover:rotate-180 shadow-lg z-20"
+          >
+            <ArrowLeftRight size={20} />
+          </button>
+
           {/* To Airport */}
           <div className="relative">
             <AirportAutocomplete
@@ -267,15 +276,6 @@ const FlightSearchForm = () => {
               placeholder="Chọn sân bay đến"
               error={errors.toCity}
             />
-            
-            {/* Swap button */}
-            <button 
-              type="button" 
-              onClick={handleSwapCities}
-              className="absolute -left-6 top-1/2 transform -translate-y-1/2 bg-red-600 border-none rounded-full w-10 h-10 hidden md:flex items-center justify-center text-white cursor-pointer transition-all duration-300 hover:bg-red-700 hover:rotate-180 shadow-lg z-20"
-            >
-              <ArrowLeftRight size={18} />
-            </button>
           </div>
         </div>
 

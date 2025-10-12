@@ -43,6 +43,38 @@ const flightService = {
     });
     return response.data;
   },
+
+  /**
+   * Get flight status by flight number
+   * @param {string} flightNumber - Flight number (e.g., VJ123)
+   * @param {string} date - Flight date (YYYY-MM-DD)
+   */
+  getFlightStatusByNumber: async (flightNumber, date) => {
+    const response = await api.get(FLIGHT_ENDPOINTS.STATUS, {
+      params: {
+        flightNumber,
+        date,
+      },
+    });
+    return response.data;
+  },
+
+  /**
+   * Get flight status by route
+   * @param {string} from - Departure airport code/city
+   * @param {string} to - Arrival airport code/city
+   * @param {string} departureDate - Departure date (YYYY-MM-DD)
+   */
+  getFlightStatusByRoute: async (from, to, departureDate) => {
+    const response = await api.get(FLIGHT_ENDPOINTS.SEARCH, {
+      params: {
+        from,
+        to,
+        departureDate,
+      },
+    });
+    return response.data;
+  },
 };
 
 export default flightService;

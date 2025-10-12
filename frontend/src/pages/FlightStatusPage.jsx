@@ -1,56 +1,86 @@
-import axios from 'axios';
-import { AlertCircle, Calendar, CheckCircle, Clock, MapPin, Plane, Search, XCircle } from 'lucide-react';
-import { useState } from 'react';
-import Footer from '../components/Footer';
-import Header from '../components/Header';
-import { getFlightStatusLabel } from '../constants/flightStatus';
-import '../styles/FlightStatus.css';
+import {
+  AlertCircle,
+  Calendar,
+  CheckCircle,
+  Clock,
+  MapPin,
+  Plane,
+  Search,
+  XCircle,
+} from "lucide-react";
+import { useState } from "react";
+import AirportAutocomplete from "../components/AirportAutocomplete";
+import Footer from "../components/Footer";
+import Header from "../components/Header";
+import { getFlightStatusLabel } from "../constants/flightStatus";
+import flightService from "../services/flightService";
+import "../styles/FlightStatus.css";
 
 const FlightStatusPage = () => {
-  const [searchType, setSearchType] = useState('flightNumber'); // 'flightNumber' or 'route'
+  const [searchType, setSearchType] = useState("flightNumber"); // 'flightNumber' or 'route'
   const [searchData, setSearchData] = useState({
-    flightNumber: '',
-    date: new Date().toISOString().split('T')[0],
-    from: '',
-    to: ''
+    flightNumber: "",
+    date: new Date().toISOString().split("T")[0],
+    from: "",
+    to: "",
   });
   const [flights, setFlights] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [searched, setSearched] = useState(false);
 
   const handleSearch = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setError('');
+    setError("");
     setSearched(true);
 
     try {
       let response;
-      
-      if (searchType === 'flightNumber') {
-        // Search by flight number
-        response = await axios.get('http://localhost:5000/api/flights', {
-          params: {
-            flightNumber: searchData.flightNumber,
-            date: searchData.date
-          }
-        });
+
+      if (searchType === "flightNumber") {
+        // Validate flight number
+        if (!searchData.flightNumber || searchData.flightNumber.trim() === "") {
+          setError("Vui lòng nhập số hiệu chuyến bay");
+          setLoading(false);
+          return;
+        }
+
+        // Search by flight number using flightService
+        response = await flightService.getFlightStatusByNumber(
+          searchData.flightNumber,
+          searchData.date
+        );
+        setFlights(response.data?.flights || []);
       } else {
-        // Search by route
-        response = await axios.get('http://localhost:5000/api/flights/search', {
-          params: {
-            from: searchData.from,
-            to: searchData.to,
-            departureDate: searchData.date
-          }
-        });
+        // Validate route inputs
+        if (!searchData.from || searchData.from.trim() === "") {
+          setError("Vui lòng chọn điểm đi");
+          setLoading(false);
+          return;
+        }
+        if (!searchData.to || searchData.to.trim() === "") {
+          setError("Vui lòng chọn điểm đến");
+          setLoading(false);
+          return;
+        }
+        if (searchData.from === searchData.to) {
+          setError("Điểm đi và điểm đến không thể giống nhau");
+          setLoading(false);
+          return;
+        }
+
+        response = await flightService.getFlightStatusByRoute(
+          searchData.from,
+          searchData.to,
+          searchData.date
+        );
+        setFlights(response.data?.outboundFlights || []);
       }
-      
-      setFlights(response.data?.outbound || response.data?.data || []);
+      console.log("Search response:", response);
     } catch (error) {
-      console.error('Search error:', error);
-      setError(error.response?.data?.message || 'Có lỗi xảy ra khi tìm kiếm');
+      console.error("Search error:", error);
+      setError(error.response?.data?.message || "Có lỗi xảy ra khi tìm kiếm");
       setFlights([]);
     } finally {
       setLoading(false);
@@ -60,82 +90,91 @@ const FlightStatusPage = () => {
   const getStatusInfo = (status) => {
     const statusMap = {
       scheduled: {
-        label: getFlightStatusLabel('scheduled'),
+        label: getFlightStatusLabel("scheduled"),
         icon: <Clock className="status-icon" />,
-        color: 'status-scheduled'
+        color: "status-scheduled",
       },
       boarding: {
-        label: getFlightStatusLabel('boarding'),
+        label: getFlightStatusLabel("boarding"),
         icon: <Plane className="status-icon" />,
-        color: 'status-boarding'
+        color: "status-boarding",
       },
       departed: {
-        label: getFlightStatusLabel('departed'),
+        label: getFlightStatusLabel("departed"),
         icon: <Plane className="status-icon rotating" />,
-        color: 'status-departed'
+        color: "status-departed",
       },
       in_flight: {
-        label: getFlightStatusLabel('in_flight'),
+        label: getFlightStatusLabel("in_flight"),
         icon: <Plane className="status-icon" />,
-        color: 'status-in-flight'
+        color: "status-in-flight",
       },
       landed: {
-        label: 'Đã hạ cánh',
+        label: "Đã hạ cánh",
         icon: <CheckCircle className="status-icon" />,
-        color: 'status-landed'
+        color: "status-landed",
       },
       arrived: {
-        label: getFlightStatusLabel('arrived'),
+        label: getFlightStatusLabel("arrived"),
         icon: <CheckCircle className="status-icon" />,
-        color: 'status-arrived'
+        color: "status-arrived",
       },
       delayed: {
-        label: getFlightStatusLabel('delayed'),
+        label: getFlightStatusLabel("delayed"),
         icon: <AlertCircle className="status-icon" />,
-        color: 'status-delayed'
+        color: "status-delayed",
       },
       cancelled: {
-        label: getFlightStatusLabel('cancelled'),
+        label: getFlightStatusLabel("cancelled"),
         icon: <XCircle className="status-icon" />,
-        color: 'status-cancelled'
+        color: "status-cancelled",
+      },
+    };
+
+    return (
+      statusMap[status] || {
+        label: status,
+        icon: <Clock className="status-icon" />,
+        color: "status-unknown",
       }
-    };
-    
-    return statusMap[status] || {
-      label: status,
-      icon: <Clock className="status-icon" />,
-      color: 'status-unknown'
-    };
+    );
   };
 
   const formatTime = (dateString) => {
-    if (!dateString) return '--:--';
-    return new Date(dateString).toLocaleTimeString('vi-VN', {
-      hour: '2-digit',
-      minute: '2-digit'
+    if (!dateString) return "--:--";
+    return new Date(dateString).toLocaleTimeString("vi-VN", {
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
   const formatDate = (dateString) => {
-    if (!dateString) return '--';
-    return new Date(dateString).toLocaleDateString('vi-VN', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
+    if (!dateString) return "--";
+    return new Date(dateString).toLocaleDateString("vi-VN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
     });
   };
 
   const formatDuration = (duration) => {
-    if (!duration) return '--';
-    const hours = Math.floor(duration / 60);
-    const minutes = duration % 60;
-    return `${hours}h ${minutes}m`;
+    if (!duration) return "--";
+
+    // Handle both object { scheduled: 135, actual: 135 } and number format
+    const minutes =
+      typeof duration === "object"
+        ? duration.actual || duration.scheduled || 0
+        : duration;
+
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return `${hours}h ${mins}m`;
   };
 
   return (
     <div className="flight-status-page">
       <Header />
-      
+
       <div className="flight-status-hero">
         <div className="hero-content">
           <div className="hero-icon">
@@ -150,15 +189,17 @@ const FlightStatusPage = () => {
         <div className="search-section">
           <div className="search-tabs">
             <button
-              className={`tab-button ${searchType === 'flightNumber' ? 'active' : ''}`}
-              onClick={() => setSearchType('flightNumber')}
+              className={`tab-button ${
+                searchType === "flightNumber" ? "active" : ""
+              }`}
+              onClick={() => setSearchType("flightNumber")}
             >
               <Plane size={20} />
               Tìm theo số hiệu
             </button>
             <button
-              className={`tab-button ${searchType === 'route' ? 'active' : ''}`}
-              onClick={() => setSearchType('route')}
+              className={`tab-button ${searchType === "route" ? "active" : ""}`}
+              onClick={() => setSearchType("route")}
             >
               <MapPin size={20} />
               Tìm theo tuyến bay
@@ -166,7 +207,7 @@ const FlightStatusPage = () => {
           </div>
 
           <form onSubmit={handleSearch} className="search-form">
-            {searchType === 'flightNumber' ? (
+            {searchType === "flightNumber" ? (
               <div className="form-row">
                 <div className="form-group flex-2">
                   <label>
@@ -176,7 +217,12 @@ const FlightStatusPage = () => {
                   <input
                     type="text"
                     value={searchData.flightNumber}
-                    onChange={(e) => setSearchData({ ...searchData, flightNumber: e.target.value.toUpperCase() })}
+                    onChange={(e) =>
+                      setSearchData({
+                        ...searchData,
+                        flightNumber: e.target.value.toUpperCase(),
+                      })
+                    }
                     placeholder="VD: VJ123"
                     required
                     className="input-field"
@@ -190,7 +236,9 @@ const FlightStatusPage = () => {
                   <input
                     type="date"
                     value={searchData.date}
-                    onChange={(e) => setSearchData({ ...searchData, date: e.target.value })}
+                    onChange={(e) =>
+                      setSearchData({ ...searchData, date: e.target.value })
+                    }
                     required
                     className="input-field"
                   />
@@ -200,31 +248,23 @@ const FlightStatusPage = () => {
               <>
                 <div className="form-row">
                   <div className="form-group flex-1">
-                    <label>
-                      <MapPin size={18} />
-                      Từ
-                    </label>
-                    <input
-                      type="text"
+                    <AirportAutocomplete
+                      label="Từ"
                       value={searchData.from}
-                      onChange={(e) => setSearchData({ ...searchData, from: e.target.value })}
+                      onChange={(value) =>
+                        setSearchData({ ...searchData, from: value })
+                      }
                       placeholder="Thành phố/Sân bay"
-                      required
-                      className="input-field"
                     />
                   </div>
                   <div className="form-group flex-1">
-                    <label>
-                      <MapPin size={18} />
-                      Đến
-                    </label>
-                    <input
-                      type="text"
+                    <AirportAutocomplete
+                      label="Đến"
                       value={searchData.to}
-                      onChange={(e) => setSearchData({ ...searchData, to: e.target.value })}
+                      onChange={(value) =>
+                        setSearchData({ ...searchData, to: value })
+                      }
                       placeholder="Thành phố/Sân bay"
-                      required
-                      className="input-field"
                     />
                   </div>
                   <div className="form-group flex-1">
@@ -235,7 +275,9 @@ const FlightStatusPage = () => {
                     <input
                       type="date"
                       value={searchData.date}
-                      onChange={(e) => setSearchData({ ...searchData, date: e.target.value })}
+                      onChange={(e) =>
+                        setSearchData({ ...searchData, date: e.target.value })
+                      }
                       required
                       className="input-field"
                     />
@@ -246,7 +288,7 @@ const FlightStatusPage = () => {
 
             <button type="submit" className="btn-search" disabled={loading}>
               <Search size={20} />
-              {loading ? 'Đang tìm kiếm...' : 'Tìm kiếm'}
+              {loading ? "Đang tìm kiếm..." : "Tìm kiếm"}
             </button>
           </form>
         </div>
@@ -276,11 +318,11 @@ const FlightStatusPage = () => {
         {!loading && flights.length > 0 && (
           <div className="results-section">
             <h2>Kết quả tìm kiếm ({flights.length} chuyến bay)</h2>
-            
+
             <div className="flights-list">
               {flights.map((flight, index) => {
                 const statusInfo = getStatusInfo(flight.status);
-                
+
                 return (
                   <div key={index} className="flight-card">
                     <div className="flight-card-header">
@@ -297,13 +339,19 @@ const FlightStatusPage = () => {
                     <div className="flight-card-body">
                       <div className="flight-route">
                         <div className="route-point departure">
-                          <div className="airport-code">{flight.route?.departure?.airport?.code?.iata}</div>
-                          <div className="airport-name">{flight.route?.departure?.airport?.name?.vi}</div>
+                          <div className="airport-code">
+                            {flight.route?.departure?.airport?.code?.iata}
+                          </div>
+                          <div className="airport-name">
+                            {flight.route?.departure?.airport?.name?.vi}
+                          </div>
                           <div className="flight-time">
                             <Clock size={16} />
                             {formatTime(flight.route?.departure?.time)}
                           </div>
-                          <div className="flight-date">{formatDate(flight.route?.departure?.time)}</div>
+                          <div className="flight-date">
+                            {formatDate(flight.route?.departure?.time)}
+                          </div>
                         </div>
 
                         <div className="route-divider">
@@ -316,13 +364,19 @@ const FlightStatusPage = () => {
                         </div>
 
                         <div className="route-point arrival">
-                          <div className="airport-code">{flight.route?.arrival?.airport?.code?.iata}</div>
-                          <div className="airport-name">{flight.route?.arrival?.airport?.name?.vi}</div>
+                          <div className="airport-code">
+                            {flight.route?.arrival?.airport?.code?.iata}
+                          </div>
+                          <div className="airport-name">
+                            {flight.route?.arrival?.airport?.name?.vi}
+                          </div>
                           <div className="flight-time">
                             <Clock size={16} />
                             {formatTime(flight.route?.arrival?.time)}
                           </div>
-                          <div className="flight-date">{formatDate(flight.route?.arrival?.time)}</div>
+                          <div className="flight-date">
+                            {formatDate(flight.route?.arrival?.time)}
+                          </div>
                         </div>
                       </div>
 
@@ -331,7 +385,9 @@ const FlightStatusPage = () => {
                           <MapPin size={18} />
                           <div>
                             <div className="detail-label">Cổng khởi hành</div>
-                            <div className="detail-value">{flight.route?.departure?.gate || 'Chưa công bố'}</div>
+                            <div className="detail-value">
+                              {flight.route?.departure?.gate || "Chưa công bố"}
+                            </div>
                           </div>
                         </div>
 
@@ -339,7 +395,9 @@ const FlightStatusPage = () => {
                           <MapPin size={18} />
                           <div>
                             <div className="detail-label">Cổng đến</div>
-                            <div className="detail-value">{flight.route?.arrival?.gate || 'Chưa công bố'}</div>
+                            <div className="detail-value">
+                              {flight.route?.arrival?.gate || "Chưa công bố"}
+                            </div>
                           </div>
                         </div>
 
@@ -347,7 +405,9 @@ const FlightStatusPage = () => {
                           <Plane size={18} />
                           <div>
                             <div className="detail-label">Loại máy bay</div>
-                            <div className="detail-value">{flight.aircraft?.model || 'N/A'}</div>
+                            <div className="detail-value">
+                              {flight.aircraft?.type || "N/A"}
+                            </div>
                           </div>
                         </div>
 
@@ -355,12 +415,16 @@ const FlightStatusPage = () => {
                           <CheckCircle size={18} />
                           <div>
                             <div className="detail-label">Số ghế trống</div>
-                            <div className="detail-value">{flight.inventory?.available || 0}</div>
+                            <div className="detail-value">
+                              {flight.inventory?.available ||
+                                flight.totalAvailable ||
+                                0}
+                            </div>
                           </div>
                         </div>
                       </div>
 
-                      {flight.status === 'delayed' && (
+                      {flight.status === "delayed" && (
                         <div className="delay-notice">
                           <AlertCircle size={20} />
                           <div>
@@ -370,7 +434,7 @@ const FlightStatusPage = () => {
                         </div>
                       )}
 
-                      {flight.status === 'cancelled' && (
+                      {flight.status === "cancelled" && (
                         <div className="cancel-notice">
                           <XCircle size={20} />
                           <div>
@@ -398,7 +462,9 @@ const FlightStatusPage = () => {
             <div className="info-card">
               <MapPin size={24} />
               <h4>Đến sân bay</h4>
-              <p>Có mặt ít nhất 2 giờ trước giờ bay quốc tế, 1 giờ cho nội địa</p>
+              <p>
+                Có mặt ít nhất 2 giờ trước giờ bay quốc tế, 1 giờ cho nội địa
+              </p>
             </div>
             <div className="info-card">
               <Plane size={24} />
@@ -408,7 +474,10 @@ const FlightStatusPage = () => {
             <div className="info-card">
               <AlertCircle size={24} />
               <h4>Thông báo quan trọng</h4>
-              <p>Theo dõi màn hình thông báo tại sân bay để cập nhật thông tin mới nhất</p>
+              <p>
+                Theo dõi màn hình thông báo tại sân bay để cập nhật thông tin
+                mới nhất
+              </p>
             </div>
           </div>
         </div>

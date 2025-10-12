@@ -59,7 +59,18 @@ const Profile = () => {
       await refreshUser();
       setMessage({ type: 'success', text: 'Cập nhật thông tin cá nhân thành công!' });
     } catch (error) {
-      setMessage({ type: 'error', text: error.response?.data?.message || 'Cập nhật thất bại' });
+      // Handle validation errors from backend
+      let errorMessage = 'Cập nhật thất bại';
+      
+      if (error.response?.data) {
+        if (error.response.data.errors && Array.isArray(error.response.data.errors)) {
+          errorMessage = error.response.data.errors.map(err => err.msg).join(', ');
+        } else if (error.response.data.message) {
+          errorMessage = error.response.data.message;
+        }
+      }
+      
+      setMessage({ type: 'error', text: errorMessage });
     } finally {
       setLoading(false);
     }
@@ -89,7 +100,18 @@ const Profile = () => {
       await refreshUser();
       setMessage({ type: 'success', text: 'Cập nhật thông tin liên hệ thành công!' });
     } catch (error) {
-      setMessage({ type: 'error', text: error.response?.data?.message || 'Cập nhật thất bại' });
+      // Handle validation errors from backend
+      let errorMessage = 'Cập nhật thất bại';
+      
+      if (error.response?.data) {
+        if (error.response.data.errors && Array.isArray(error.response.data.errors)) {
+          errorMessage = error.response.data.errors.map(err => err.msg).join(', ');
+        } else if (error.response.data.message) {
+          errorMessage = error.response.data.message;
+        }
+      }
+      
+      setMessage({ type: 'error', text: errorMessage });
     } finally {
       setLoading(false);
     }
@@ -111,7 +133,21 @@ const Profile = () => {
       setMessage({ type: 'success', text: 'Đổi mật khẩu thành công!' });
       setPasswordData({ oldPassword: '', newPassword: '', confirmPassword: '' });
     } catch (error) {
-      setMessage({ type: 'error', text: error.response?.data?.message || 'Đổi mật khẩu thất bại' });
+      // Handle validation errors from backend
+      let errorMessage = 'Đổi mật khẩu thất bại';
+      
+      if (error.response?.data) {
+        // Check if it's a validation error with multiple errors
+        if (error.response.data.errors && Array.isArray(error.response.data.errors)) {
+          errorMessage = error.response.data.errors.map(err => err.msg).join(', ');
+        } 
+        // Single error message
+        else if (error.response.data.message) {
+          errorMessage = error.response.data.message;
+        }
+      }
+      
+      setMessage({ type: 'error', text: errorMessage });
     } finally {
       setLoading(false);
     }

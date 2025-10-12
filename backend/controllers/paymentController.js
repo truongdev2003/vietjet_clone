@@ -165,9 +165,17 @@ class PaymentController {
 
       if (isSuccess) {
         // Update payment status
-        payment.status = 'completed';
-        payment.completedAt = new Date();
-        payment.transaction = {
+        payment.status.overall = 'paid';
+        payment.status.details = {
+          authorized: true,
+          captured: true,
+          settled: false,
+          reconciled: false
+        };
+        payment.status.timeline.completed = new Date();
+        
+        // Add transaction to transactions array
+        payment.transactions.push({
           id: callbackData.transactionId || callbackData.orderId,
           gateway: {
             provider: provider,
@@ -177,8 +185,12 @@ class PaymentController {
           },
           amount: payment.amount.total,
           currency: payment.amount.currency,
-          completedAt: new Date()
-        };
+          status: 'success',
+          timestamp: {
+            initiated: payment.status.timeline.initiated,
+            completed: new Date()
+          }
+        });
 
         await payment.save();
 
@@ -229,7 +241,8 @@ class PaymentController {
 
       } else {
         // Update payment status as failed
-        payment.status = 'failed';
+        payment.status.overall = 'failed';
+        payment.status.timeline.failed = new Date();
         payment.failure = {
           code: callbackData.responseCode || 'PAYMENT_FAILED',
           message: errorMessage || 'Thanh toán thất bại',
@@ -475,32 +488,41 @@ class PaymentController {
     const query = {};
     
     // Filter by status (nested in status.overall)
-    if (status) query['status.overall'] = status;
+    if (status) {
+      query['status.overall'] = status;
+    }
     
     // Filter by payment method (paymentMethods array)
-    if (method) query['paymentMethods.type'] = method;
+    if (method) {
+      query['paymentMethods.type'] = method;
+    }
     
     // Search by paymentReference or booking reference
     if (search) {
+      const bookings = await Booking.find({
+        bookingReference: { $regex: search, $options: 'i' }
+      }).select('_id');
+      
       query.$or = [
-        { paymentReference: { $regex: search, $options: 'i' } }
+        { paymentReference: { $regex: search, $options: 'i' } },
+        { booking: { $in: bookings.map(b => b._id) } }
       ];
     }
     
     // Filter by date range
     if (dateFrom || dateTo) {
-      query.createdAt = {};
-      if (dateFrom) query.createdAt.$gte = new Date(dateFrom);
-      if (dateTo) query.createdAt.$lte = new Date(dateTo);
+      query['status.timeline.initiated'] = {};
+      if (dateFrom) query['status.timeline.initiated'].$gte = new Date(dateFrom);
+      if (dateTo) query['status.timeline.initiated'].$lte = new Date(dateTo);
     }
 
     // Execute query with pagination
     const skip = (page - 1) * limit;
     const payments = await Payment.find(query)
-      .sort({ createdAt: -1 })
+      .sort({ 'status.timeline.initiated': -1 })
       .skip(skip)
       .limit(parseInt(limit))
-      .populate('booking', 'bookingReference')
+      .populate('booking', 'bookingReference contactInfo')
       .populate('user', 'personalInfo.firstName personalInfo.lastName contactInfo.email')
       .lean();
 

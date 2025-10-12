@@ -47,12 +47,6 @@ class AuthController {
         return next(new AppError('Mật khẩu xác nhận không khớp', 400));
       }
 
-      // Validate password strength
-      const passwordValidation = AuthUtils.validatePasswordStrength(password);
-      if (!passwordValidation.isValid) {
-        return next(new AppError(passwordValidation.errors.join(', '), 400));
-      }
-
       // Validate email format
       if (!AuthUtils.isValidEmail(email)) {
         return next(new AppError('Email không hợp lệ', 400));
@@ -435,12 +429,6 @@ class AuthController {
       return next(new AppError('Mật khẩu xác nhận không khớp', 400));
     }
 
-    // Validate password strength
-    const passwordValidation = AuthUtils.validatePasswordStrength(password);
-    if (!passwordValidation.isValid) {
-      return next(new AppError(passwordValidation.errors.join(', '), 400));
-    }
-
     // Hash the token
     const hashedToken = AuthUtils.hashToken(token);
 
@@ -577,12 +565,6 @@ class AuthController {
 
     if (currentPassword === newPassword) {
       return next(new AppError('Mật khẩu mới phải khác mật khẩu hiện tại', 400));
-    }
-
-    // Validate new password strength
-    const passwordValidation = AuthUtils.validatePasswordStrength(newPassword);
-    if (!passwordValidation.isValid) {
-      return next(new AppError(passwordValidation.errors.join(', '), 400));
     }
 
     // Find user

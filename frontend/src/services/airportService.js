@@ -1,9 +1,20 @@
 import api from '../config/axios';
 
 const API_BASE = '/admin/airports';
+const PUBLIC_API = '/airports';
 
 const airportService = {
-  // Lấy danh sách tất cả sân bay
+  // Lấy danh sách tất cả sân bay (Public - no auth required)
+  getPublicAirports: async (params = {}) => {
+    try {
+      const response = await api.get(PUBLIC_API, { params });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
+  // Lấy danh sách tất cả sân bay (Admin - requires auth)
   getAllAirports: async (params = {}) => {
     try {
       const queryString = new URLSearchParams(params).toString();

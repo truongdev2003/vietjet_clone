@@ -1,8 +1,8 @@
-import axios from 'axios';
 import { CheckCircle, CreditCard, Search, User, XCircle } from 'lucide-react';
 import { useState } from 'react';
 import Footer from '../components/Footer';
 import Header from '../components/Header';
+import bookingService from '../services/bookingService';
 
 const ManageBooking = () => {
   const [searchData, setSearchData] = useState({
@@ -28,21 +28,30 @@ const ManageBooking = () => {
     setSuccessMessage('');
 
     try {
-      const response = await axios.get(`http://localhost:5000/api/bookings/${searchData.bookingReference}`);
+      // Use bookingService to get booking by code
+      const response = await bookingService.getBookingByCode(
+        searchData.bookingReference,
+        searchData.email
+      );
       
-      if (response.data.contactInfo.email.toLowerCase() !== searchData.email.toLowerCase()) {
+      // Handle nested response structure from backend
+      const bookingData = response.data?.booking || response.booking || response.data || response;
+      
+      // Verify email match (use contact or contactInfo)
+      const bookingEmail = bookingData.contact?.email || bookingData.contactInfo?.email;
+      if (!bookingEmail || bookingEmail.toLowerCase() !== searchData.email.toLowerCase()) {
         setError('Email không khớp với thông tin đặt vé');
         setBooking(null);
         return;
       }
       
-      setBooking(response.data);
+      setBooking(bookingData);
     } catch (error) {
       console.error('Search error:', error);
       if (error.response?.status === 404) {
         setError('Không tìm thấy mã đặt vé');
       } else {
-        setError('Có lỗi xảy ra khi tìm kiếm');
+        setError(error.response?.data?.message || 'Có lỗi xảy ra khi tìm kiếm');
       }
       setBooking(null);
     } finally {
@@ -53,13 +62,17 @@ const ManageBooking = () => {
   const handleCheckIn = async () => {
     try {
       setLoading(true);
-      const response = await axios.put(`http://localhost:5000/api/bookings/${booking.bookingReference}/checkin`);
+      setError('');
+      setSuccessMessage('');
       
-      setBooking(response.data.booking);
+      // Use bookingService for online check-in
+      const response = await bookingService.onlineCheckin(booking._id);
+      
+      setBooking(response.data?.booking || response.booking);
       setSuccessMessage('Check-in thành công!');
     } catch (error) {
       console.error('Check-in error:', error);
-      setError('Có lỗi xảy ra khi check-in');
+      setError(error.response?.data?.message || 'Có lỗi xảy ra khi check-in');
     } finally {
       setLoading(false);
     }
@@ -72,13 +85,17 @@ const ManageBooking = () => {
 
     try {
       setLoading(true);
-      const response = await axios.put(`http://localhost:5000/api/bookings/${booking.bookingReference}/cancel`);
+      setError('');
+      setSuccessMessage('');
       
-      setBooking(response.data.booking);
+      // Use bookingService to cancel booking
+      const response = await bookingService.cancelBooking(booking._id, 'Khách hàng yêu cầu hủy');
+      
+      setBooking(response.data?.booking || response.booking);
       setSuccessMessage('Hủy đặt vé thành công!');
     } catch (error) {
       console.error('Cancel error:', error);
-      setError('Có lỗi xảy ra khi hủy đặt vé');
+      setError(error.response?.data?.message || 'Có lỗi xảy ra khi hủy đặt vé');
     } finally {
       setLoading(false);
     }
@@ -157,7 +174,7 @@ const ManageBooking = () => {
           <button 
             type="submit" 
             disabled={loading}
-            className="bg-gradient-to-br from-primary-500 to-primary-600 text-white border-none px-6 py-3 rounded-md text-base font-semibold cursor-pointer flex items-center gap-2 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg disabled:bg-gray-300 disabled:cursor-not-allowed disabled:transform-none w-full md:w-auto"
+            className="bg-gradient-to-br from-red-500 to-red-600 text-white border-none px-6 py-3 rounded-md text-base font-semibold cursor-pointer flex items-center gap-2 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg disabled:bg-gray-300 disabled:cursor-not-allowed disabled:transform-none w-full md:w-auto"
           >
             <Search size={16} />
             {loading ? 'Đang tìm...' : 'Tìm kiếm'}
@@ -268,7 +285,7 @@ const ManageBooking = () => {
               <button 
                 onClick={handleCheckIn}
                 disabled={loading}
-                className="px-5 py-2.5 rounded-md text-sm font-semibold cursor-pointer transition-all bg-gradient-to-br from-primary-500 to-primary-600 text-white border-none hover:-translate-y-0.5 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                className="px-5 py-2.5 rounded-md text-sm font-semibold cursor-pointer transition-all bg-gradient-to-br from-red-500 to-red-600 text-white border-none hover:-translate-y-0.5 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
               >
                 Check-in trực tuyến
               </button>
@@ -276,7 +293,7 @@ const ManageBooking = () => {
             
             <button 
               onClick={() => window.print()}
-              className="px-5 py-2.5 rounded-md text-sm font-semibold cursor-pointer transition-all bg-white text-gray-500 border-2 border-gray-300 hover:border-primary-500 hover:text-primary-500"
+              className="px-5 py-2.5 rounded-md text-sm font-semibold cursor-pointer transition-all bg-white text-gray-700 border-2 border-gray-300 hover:border-red-500 hover:text-red-600"
             >
               In vé
             </button>

@@ -23,6 +23,7 @@ export const FLIGHT_ENDPOINTS = {
   SEARCH: '/flights/search',
   DETAIL: '/flights',
   SCHEDULES: '/flights/schedules',
+  STATUS: '/flights/status', // New endpoint for flight status (by flight number or route)
 };
 
 // Booking endpoints

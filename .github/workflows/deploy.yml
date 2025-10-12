@@ -1,0 +1,45 @@
+name: 🚀 Auto Deploy to VPS
+
+on:
+  push:
+    branches:
+      - main  # hoặc dev nếu bạn deploy từ dev
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 🧭 Checkout source code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup SSH connection
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_KEY }}
+          script: |
+            cd ~/vietjet_clone
+
+            echo "🔄 Pulling latest code..."
+            git pull origin main
+
+            echo "📁 Updating backend..."
+            cd backend
+            npm install
+            pm2 restart backend || pm2 start index.js --name backend
+
+            echo "🌐 Building frontend..."
+            cd ../frontend
+            npm install
+            npm run build
+
+            echo "🚚 Deploying frontend to Nginx..."
+            sudo rm -rf /var/www/html/*
+            sudo cp -r dist/* /var/www/html/
+
+            echo "✅ Restarting Nginx..."
+            sudo systemctl restart nginx
+
+            echo "🎉 Deploy complete!"

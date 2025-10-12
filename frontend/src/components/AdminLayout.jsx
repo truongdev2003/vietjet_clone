@@ -1,22 +1,22 @@
 import {
-    BarChart3,
-    Bell,
-    BookOpen,
-    Building2,
-    CheckCircle,
-    ChevronDown,
-    CreditCard,
-    DollarSign,
-    Grid,
-    Image,
-    LayoutDashboard,
-    LogOut,
-    Menu,
-    Plane,
-    PlaneTakeoff,
-    Route,
-    Users,
-    X,
+  BarChart3,
+  Bell,
+  BookOpen,
+  Building2,
+  CheckCircle,
+  ChevronDown,
+  CreditCard,
+  DollarSign,
+  Grid,
+  Image,
+  LayoutDashboard,
+  LogOut,
+  Menu,
+  Plane,
+  PlaneTakeoff,
+  Route,
+  Users,
+  X,
 } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -80,11 +80,7 @@ const AdminLayout = ({ children }) => {
       path: '/admin/payments',
       icon: CreditCard,
     },
-    {
-      name: 'Quản lý Thông báo',
-      path: '/admin/notifications',
-      icon: Bell,
-    },
+   
     {
       name: 'Quản lý Check-in',
       path: '/admin/checkin',
@@ -126,11 +122,12 @@ const AdminLayout = ({ children }) => {
 
       {/* Sidebar */}
       <div
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-gray-900 transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-gray-900 transform transition-transform duration-300 ease-in-out lg:translate-x-0 flex flex-col ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="flex items-center justify-between h-16 px-6 bg-gray-800">
+        {/* Header */}
+        <div className="flex items-center justify-between h-16 px-6 bg-gray-800 flex-shrink-0">
           <Link to="/admin" className="flex items-center">
             <span className="text-red-600 font-bold text-xl">Vietjet</span>
             <span className="text-yellow-500 font-bold text-xl ml-1">Admin</span>
@@ -143,7 +140,8 @@ const AdminLayout = ({ children }) => {
           </button>
         </div>
 
-        <nav className="mt-6 px-3">
+        {/* Navigation - Scrollable */}
+        <nav className="flex-1 overflow-y-auto mt-6 px-3 pb-4">
           {navigation.map((item) => {
             const Icon = item.icon;
             const active = isActive(item.path);
@@ -165,10 +163,11 @@ const AdminLayout = ({ children }) => {
           })}
         </nav>
 
-        <div className="absolute bottom-0 w-full p-4 border-t border-gray-800">
+        {/* Logout Button - Fixed at bottom */}
+        <div className="flex-shrink-0 p-4 border-t border-gray-800">
           <button
             onClick={handleLogout}
-            className="flex items-center w-full px-4 py-3 text-gray-400 hover:bg-gray-800 hover:text-white rounded-lg transition-colors"
+            className="flex items-center w-full px-4 py-3 text-gray-400 hover:bg-red-600 hover:text-white rounded-lg transition-colors"
           >
             <LogOut size={20} />
             <span className="ml-3 font-medium">Đăng xuất</span>

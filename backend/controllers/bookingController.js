@@ -403,7 +403,7 @@ class BookingController {
 
     const booking = await Booking.findOne({
       bookingReference: reference.toUpperCase(),
-      'contact.email': email.toLowerCase()
+      'contactInfo.email': email.toLowerCase()
     })
       .populate('flights.flight', 'flightNumber route airline status')
       .populate('flights.flight.route.departure.airport', 'code name')
@@ -438,13 +438,13 @@ class BookingController {
     // Tìm kiếm bằng email hoặc phone
     if (email && phone) {
       query.$or = [
-        { 'contact.email': email.toLowerCase() },
-        { 'contact.phone': phone }
+        { 'contactInfo.email': email.toLowerCase() },
+        { 'contactInfo.phone': phone }
       ];
     } else if (email) {
-      query['contact.email'] = email.toLowerCase();
+      query['contactInfo.email'] = email.toLowerCase();
     } else if (phone) {
-      query['contact.phone'] = phone;
+      query['contactInfo.phone'] = phone;
     }
 
     const booking = await Booking.findOne(query)

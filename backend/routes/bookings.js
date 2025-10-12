@@ -8,6 +8,7 @@ const router = express.Router();
 // Public routes
 router.post('/search', BookingController.findBookingByReference);
 router.get('/lookup/:reference', BookingController.guestBookingLookup); // Tra cứu cho guest
+router.get('/code/:bookingCode', BookingController.guestBookingLookup); // Tra cứu theo mã booking
 
 // Routes hỗ trợ cả guest và user đã đăng nhập
 router.post('/', optionalAuth, validateBookingCreate, BookingController.createBooking);
