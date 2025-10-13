@@ -1,7 +1,7 @@
-import axios from 'axios';
 import { ArrowLeftRight, MapPin, Search } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import airportService from '../services/airportService';
 
 // Airport Autocomplete Component
 const AirportAutocomplete = ({ label, value, onChange, placeholder, error }) => {
@@ -11,12 +11,12 @@ const AirportAutocomplete = ({ label, value, onChange, placeholder, error }) => 
   const [airports, setAirports] = useState([]);
 
   useEffect(() => {
-    // Fetch airports from API
+    // Fetch airports from API using service layer
     const fetchAirports = async () => {
       try {
-        const response = await axios.get('http://localhost:5000/api/airports');
+        const response = await airportService.getPublicAirports();
         // API returns { success, message, data: { airports: [...], pagination: {...} } }
-        const airportsData = response.data?.data?.airports || [];
+        const airportsData = response?.data?.airports || [];
         setAirports(airportsData);
       } catch (error) {
         console.error('Error fetching airports:', error);
