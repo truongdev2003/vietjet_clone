@@ -1,0 +1,30 @@
+{
+  "name": "vietjet-load-tests",
+  "version": "1.0.0",
+  "description": "Load testing suite for VietJet Clone backend",
+  "scripts": {
+    "test:quick": "node autocannon-simple-test.js",
+    "test:artillery": "artillery run artillery-booking-flow.yml",
+    "test:artillery:report": "artillery run artillery-booking-flow.yml --output results/artillery-report.json && artillery report results/artillery-report.json",
+    "test:k6": "k6 run k6-stress-test.js",
+    "test:k6:cloud": "k6 cloud k6-stress-test.js",
+    "test:all": "npm run test:quick && npm run test:artillery && npm run test:k6",
+    "install:tools": "npm install -g artillery autocannon && echo 'Install k6 manually from https://k6.io'"
+  },
+  "keywords": [
+    "load-testing",
+    "performance",
+    "artillery",
+    "k6",
+    "autocannon"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "autocannon": "^7.15.0"
+  },
+  "devDependencies": {
+    "artillery": "^2.0.20",
+    "artillery-plugin-expect": "^2.5.3"
+  }
+}

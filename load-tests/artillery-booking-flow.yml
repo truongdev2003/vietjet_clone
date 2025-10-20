@@ -1,0 +1,323 @@
+# Artillery Load Test - Complete Booking Flow
+# Mô phỏng luồng đặt vé hoàn chỉnh của người dùng
+
+config:
+  target: "http://localhost:5000"
+  phases:
+    # Phase 1: Warm-up - Khởi động hệ thống
+    - duration: 60
+      arrivalRate: 2
+      name: "Warm-up"
+    
+    # Phase 2: Ramp-up - Tăng dần tải
+    - duration: 300
+      arrivalRate: 5
+      rampTo: 20
+      name: "Ramp-up to normal load"
+    
+    # Phase 3: Steady State - Tải ổn định
+    - duration: 600
+      arrivalRate: 20
+      name: "Sustained load"
+    
+    # Phase 4: Peak - Giờ cao điểm
+    - duration: 300
+      arrivalRate: 50
+      name: "Peak hours"
+    
+    # Phase 5: Cool down - Giảm tải
+    - duration: 120
+      arrivalRate: 5
+      name: "Cool down"
+  
+  # Cấu hình timeout và behavior
+  timeout: 30
+  http:
+    timeout: 30000
+  
+  # Environment variables
+  variables:
+    apiUrl: "/api"
+  
+  # Plugins để reporting
+  plugins:
+    expect: {}
+  
+  # Định nghĩa metrics expectations
+  ensure:
+    maxErrorRate: 1  # Max 1% error rate
+    p95: 1000        # 95th percentile < 1000ms
+    p99: 2000        # 99th percentile < 2000ms
+
+# Định nghĩa data mẫu
+payload:
+  path: "./test-data.csv"
+  fields:
+    - "email"
+    - "phone"
+    - "firstName"
+    - "lastName"
+  order: sequence
+  skipHeader: true
+
+scenarios:
+  # Scenario 1: Complete Booking Flow (User đã đăng nhập)
+  - name: "Authenticated User Booking"
+    weight: 60
+    flow:
+      # Bước 1: Đăng nhập
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "test{{ $randomNumber(1, 100) }}@example.com"
+            password: "Test123456!"
+          capture:
+            - json: "$.data.token"
+              as: "authToken"
+            - json: "$.data.user.id"
+              as: "userId"
+          expect:
+            - statusCode: 200
+      
+      - think: 2  # User nghỉ 2 giây
+      
+      # Bước 2: Tìm kiếm chuyến bay
+      - get:
+          url: "/api/flights/search"
+          qs:
+            from: "HAN"
+            to: "SGN"
+            departureDate: "2025-11-15"
+            passengers: 1
+            class: "Economy"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          capture:
+            - json: "$.data[0]._id"
+              as: "flightId"
+            - json: "$.data[0].pricing.Economy.basePrice"
+              as: "flightPrice"
+          expect:
+            - statusCode: 200
+            - contentType: json
+            - hasProperty: data
+      
+      - think: 5  # User xem kết quả 5 giây
+      
+      # Bước 3: Xem chi tiết chuyến bay
+      - get:
+          url: "/api/flights/{{ flightId }}"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          expect:
+            - statusCode: 200
+      
+      - think: 3
+      
+      # Bước 4: Kiểm tra ghế trống
+      - get:
+          url: "/api/seats/{{ flightId }}"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          capture:
+            - json: "$.data.available[0].seatNumber"
+              as: "seatNumber"
+          expect:
+            - statusCode: 200
+      
+      - think: 8  # User chọn ghế và điền thông tin
+      
+      # Bước 5: Tạo booking
+      - post:
+          url: "/api/bookings"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+            Content-Type: "application/json"
+          json:
+            flights:
+              - flightId: "{{ flightId }}"
+                class: "Economy"
+                seatPreferences:
+                  - seatNumber: "{{ seatNumber }}"
+                    passengerIndex: 0
+            passengers:
+              - title: "Mr"
+                firstName: "{{ firstName }}"
+                lastName: "{{ lastName }}"
+                dateOfBirth: "1990-01-15"
+                gender: "Male"
+                nationality: "VN"
+                document:
+                  type: "passport"
+                  number: "N{{ $randomNumber(10000000, 99999999) }}"
+                  issuedCountry: "VN"
+                  expiryDate: "2030-12-31"
+            contactInfo:
+              email: "{{ email }}"
+              phone: "{{ phone }}"
+            paymentMethod: "credit_card"
+          capture:
+            - json: "$.data._id"
+              as: "bookingId"
+            - json: "$.data.bookingCode"
+              as: "bookingCode"
+            - json: "$.data.totalAmount"
+              as: "totalAmount"
+          expect:
+            - statusCode: 201
+            - hasProperty: data.bookingCode
+      
+      - think: 5
+      
+      # Bước 6: Thanh toán
+      - post:
+          url: "/api/payments"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+            Content-Type: "application/json"
+          json:
+            bookingId: "{{ bookingId }}"
+            amount: "{{ totalAmount }}"
+            method: "credit_card"
+            cardInfo:
+              cardNumber: "4532015112830366"
+              cardHolder: "{{ firstName }} {{ lastName }}"
+              expiryDate: "12/26"
+              cvv: "123"
+          expect:
+            - statusCode: 200
+      
+      - think: 3
+      
+      # Bước 7: Xác nhận booking
+      - get:
+          url: "/api/bookings/code/{{ bookingCode }}"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          expect:
+            - statusCode: 200
+            - hasProperty: data.status
+
+  # Scenario 2: Guest Booking (Không đăng nhập)
+  - name: "Guest User Booking"
+    weight: 40
+    flow:
+      # Tìm kiếm chuyến bay (không cần auth)
+      - get:
+          url: "/api/flights/search"
+          qs:
+            from: "SGN"
+            to: "HAN"
+            departureDate: "2025-11-20"
+            passengers: 1
+            class: "Economy"
+          capture:
+            - json: "$.data[0]._id"
+              as: "flightId"
+          expect:
+            - statusCode: 200
+      
+      - think: 4
+      
+      # Xem chi tiết
+      - get:
+          url: "/api/flights/{{ flightId }}"
+          expect:
+            - statusCode: 200
+      
+      - think: 10  # Guest thường mất nhiều thời gian hơn
+      
+      # Tạo booking cho guest
+      - post:
+          url: "/api/bookings"
+          json:
+            flights:
+              - flightId: "{{ flightId }}"
+                class: "Economy"
+            passengers:
+              - title: "Ms"
+                firstName: "{{ firstName }}"
+                lastName: "{{ lastName }}"
+                dateOfBirth: "1995-05-20"
+                gender: "Female"
+                nationality: "VN"
+                document:
+                  type: "id_card"
+                  number: "{{ $randomNumber(100000000, 999999999) }}"
+                  issuedCountry: "VN"
+                  expiryDate: "2030-12-31"
+            contactInfo:
+              email: "{{ email }}"
+              phone: "{{ phone }}"
+            paymentMethod: "bank_transfer"
+          capture:
+            - json: "$.data.bookingCode"
+              as: "bookingCode"
+          expect:
+            - statusCode: 201
+      
+      - think: 2
+      
+      # Kiểm tra booking
+      - get:
+          url: "/api/bookings/guest"
+          qs:
+            bookingCode: "{{ bookingCode }}"
+            email: "{{ email }}"
+          expect:
+            - statusCode: 200
+
+  # Scenario 3: Search Only (Chỉ tìm kiếm, không đặt)
+  - name: "Search Only Users"
+    weight: 30
+    flow:
+      # Nhiều requests tìm kiếm
+      - get:
+          url: "/api/flights/search"
+          qs:
+            from: "{{ $randomString(['HAN', 'SGN', 'DAD', 'CXR', 'VCA']) }}"
+            to: "{{ $randomString(['HAN', 'SGN', 'DAD', 'CXR', 'VCA']) }}"
+            departureDate: "2025-11-{{ $randomNumber(10, 30) }}"
+            passengers: "{{ $randomNumber(1, 4) }}"
+          expect:
+            - statusCode: 200
+      
+      - think: 3
+      
+      # Tìm kiếm thêm
+      - get:
+          url: "/api/flights/search"
+          qs:
+            from: "{{ $randomString(['HAN', 'SGN', 'HPH', 'VII']) }}"
+            to: "{{ $randomString(['HAN', 'SGN', 'HPH', 'VII']) }}"
+            departureDate: "2025-12-{{ $randomNumber(1, 15) }}"
+          expect:
+            - statusCode: 200
+
+  # Scenario 4: Browse Airports & Routes
+  - name: "Browse Information"
+    weight: 20
+    flow:
+      - get:
+          url: "/api/airports"
+          expect:
+            - statusCode: 200
+      
+      - think: 2
+      
+      - get:
+          url: "/api/airports/popular"
+          expect:
+            - statusCode: 200
+      
+      - think: 1
+      
+      - get:
+          url: "/api/fares"
+          expect:
+            - statusCode: 200
+
+# After phase callbacks
+after:
+  flow:
+    - log: "Load test completed!"
