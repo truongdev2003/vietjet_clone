@@ -48,7 +48,7 @@ const seatRoutes = require('./routes/seats');
 const checkinRoutes = require('./routes/checkin');
 const paymentGatewayRoutes = require('./routes/payment-gateway');
 const adminRoutes = require('./routes/admin');
-const twoFactorAuthRoutes = require('./routes/twoFactorAuth');
+const twoFactorAuthRoutes = require('./routes/twoFactor'); // Fixed: using clean 2FA routes
 const bannerRoutes = require('./routes/banners');
 const promoRoutes = require('./routes/promo');
  

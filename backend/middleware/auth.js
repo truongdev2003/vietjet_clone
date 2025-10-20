@@ -40,7 +40,11 @@ const protect = async (req, res, next) => {
         return response.send(res);
       }
 
-      req.user = decoded;
+      // Set req.user with both id and userId for backward compatibility
+      req.user = {
+        ...decoded,
+        id: decoded.userId  // Add .id for consistency
+      };
       req.currentUser = currentUser;
       next();
     } catch (error) {
@@ -67,7 +71,11 @@ const auth = async (req, res, next) => {
 
     const decoded = JWTService.verifyAccessToken(token);
     req.userId = decoded.userId;
-    req.user = decoded;
+    // Set req.user with both id and userId for backward compatibility
+    req.user = {
+      ...decoded,
+      id: decoded.userId
+    };
     next();
   } catch (error) {
     console.error("Auth middleware error:", error);
@@ -99,7 +107,11 @@ const optionalAuth = async (req, res, next) => {
         currentUser.status === "active" &&
         !currentUser.isLocked
       ) {
-        req.user = decoded;
+        // Set req.user with both id and userId for backward compatibility
+        req.user = {
+          ...decoded,
+          id: decoded.userId
+        };
         req.currentUser = currentUser;
       }
     } catch (error) {

@@ -11,6 +11,7 @@ import BookingPage from "./pages/BookingPage";
 import BookingSuccess from "./pages/BookingSuccess";
 import CheckInPage from "./pages/CheckInPage";
 import ContactPage from "./pages/ContactPage";
+import EmailVerification from "./pages/EmailVerification";
 import FAQPage from "./pages/FAQPage";
 import FlightSearchResults from "./pages/FlightSearchResults";
 import FlightStatusPage from "./pages/FlightStatusPage";
@@ -28,6 +29,7 @@ import Register from "./pages/Register";
 import SeatSelection from "./pages/SeatSelection";
 import TermsOfService from "./pages/TermsOfService";
 import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminProfile from "./pages/admin/AdminProfile";
 import AircraftManagement from "./pages/admin/AircraftManagement";
 import AirportManagement from "./pages/admin/AirportManagement";
 import BannerManagement from "./pages/admin/BannerManagement";
@@ -54,6 +56,7 @@ function AppContent() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/verify-email" element={<EmailVerification />} />
 
         {/* New Pages */}
         <Route path="/faq" element={<FAQPage />} />
@@ -115,6 +118,14 @@ function AppContent() {
           element={
             <AdminRoute>
               <AdminDashboard />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/admin/profile"
+          element={
+            <AdminRoute>
+              <AdminProfile />
             </AdminRoute>
           }
         />

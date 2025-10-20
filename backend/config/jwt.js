@@ -18,6 +18,15 @@ class JWTService {
     });
   }
 
+  // Generic token generator with custom expiration
+  static generateToken(payload, expiresIn = '1h') {
+    return jwt.sign(payload, config.JWT_SECRET, {
+      expiresIn: expiresIn,
+      issuer: 'vietjet-api',
+      audience: 'vietjet-client'
+    });
+  }
+
   static generateTokenPair(payload) {
     const accessToken = this.generateAccessToken(payload);
     const refreshToken = this.generateRefreshToken(payload);

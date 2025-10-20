@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
+const { getEncryptionService } = require('../services/encryptionService');
 
 const userSchema = new mongoose.Schema({
   // Thông tin cá nhân
@@ -303,6 +304,107 @@ userSchema.pre('save', async function(next) {
   this.account.password = await bcrypt.hash(this.account.password, 12);
   next();
 });
+
+// Middleware mã hóa dữ liệu nhạy cảm trước khi save
+userSchema.pre('save', async function(next) {
+  const encryptionService = getEncryptionService();
+  
+  // Nếu encryption service không available, skip (development mode)
+  if (!encryptionService) {
+    console.warn('⚠️  Encryption service not available, saving without encryption');
+    return next();
+  }
+
+  try {
+    // Mã hóa phone numbers nếu được modified
+    if (this.isModified('contactInfo.phone') && this.contactInfo.phone) {
+      // Chỉ mã hóa nếu chưa được mã hóa
+      if (!encryptionService.isEncrypted(this.contactInfo.phone)) {
+        this.contactInfo.phone = encryptionService.encrypt(this.contactInfo.phone);
+      }
+    }
+
+    if (this.isModified('contactInfo.alternatePhone') && this.contactInfo.alternatePhone) {
+      if (!encryptionService.isEncrypted(this.contactInfo.alternatePhone)) {
+        this.contactInfo.alternatePhone = encryptionService.encrypt(this.contactInfo.alternatePhone);
+      }
+    }
+
+    // Mã hóa documents (passport, ID numbers)
+    if (this.isModified('documents') && this.documents && this.documents.length > 0) {
+      this.documents = this.documents.map(doc => {
+        if (doc.number && !encryptionService.isEncrypted(doc.number)) {
+          return {
+            ...doc.toObject(),
+            number: encryptionService.encrypt(doc.number)
+          };
+        }
+        return doc;
+      });
+    }
+
+    next();
+  } catch (error) {
+    console.error('Encryption error in User pre-save:', error);
+    next(error);
+  }
+});
+
+// Middleware giải mã dữ liệu sau khi query
+userSchema.post('find', function(docs) {
+  const encryptionService = getEncryptionService();
+  if (!encryptionService || !docs) return;
+
+  docs.forEach(doc => {
+    if (doc) {
+      decryptUserFields(doc, encryptionService);
+    }
+  });
+});
+
+userSchema.post('findOne', function(doc) {
+  const encryptionService = getEncryptionService();
+  if (!encryptionService || !doc) return;
+  
+  decryptUserFields(doc, encryptionService);
+});
+
+userSchema.post('findOneAndUpdate', function(doc) {
+  const encryptionService = getEncryptionService();
+  if (!encryptionService || !doc) return;
+  
+  decryptUserFields(doc, encryptionService);
+});
+
+// Helper function để giải mã các trường
+function decryptUserFields(doc, encryptionService) {
+  try {
+    // Giải mã phone numbers
+    if (doc.contactInfo) {
+      if (doc.contactInfo.phone) {
+        doc.contactInfo.phone = encryptionService.decrypt(doc.contactInfo.phone);
+      }
+      if (doc.contactInfo.alternatePhone) {
+        doc.contactInfo.alternatePhone = encryptionService.decrypt(doc.contactInfo.alternatePhone);
+      }
+    }
+
+    // Giải mã documents
+    if (doc.documents && doc.documents.length > 0) {
+      doc.documents = doc.documents.map(docItem => {
+        if (docItem.number) {
+          return {
+            ...docItem.toObject ? docItem.toObject() : docItem,
+            number: encryptionService.decrypt(docItem.number)
+          };
+        }
+        return docItem;
+      });
+    }
+  } catch (error) {
+    console.error('Decryption error in User post-query:', error);
+  }
+}
 
 // Static method tạo guest user
 userSchema.statics.createGuestUser = async function(contactInfo) {

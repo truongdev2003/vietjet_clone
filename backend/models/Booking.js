@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { getEncryptionService } = require('../services/encryptionService');
 
 // Schema cho hành khách
 const passengerSchema = new mongoose.Schema({
@@ -428,6 +429,131 @@ bookingSchema.pre('save', function(next) {
   }
   next();
 });
+
+// Pre-save middleware mã hóa dữ liệu nhạy cảm
+bookingSchema.pre('save', async function(next) {
+  const encryptionService = getEncryptionService();
+  
+  if (!encryptionService) {
+    console.warn('⚠️  Encryption service not available, saving booking without encryption');
+    return next();
+  }
+
+  try {
+    // Mã hóa contact info
+    if (this.isModified('contactInfo')) {
+      if (this.contactInfo.phone && !encryptionService.isEncrypted(this.contactInfo.phone)) {
+        this.contactInfo.phone = encryptionService.encrypt(this.contactInfo.phone);
+      }
+      if (this.contactInfo.alternatePhone && !encryptionService.isEncrypted(this.contactInfo.alternatePhone)) {
+        this.contactInfo.alternatePhone = encryptionService.encrypt(this.contactInfo.alternatePhone);
+      }
+    }
+
+    // Mã hóa passenger documents trong flights
+    if (this.isModified('flights') && this.flights && this.flights.length > 0) {
+      this.flights = this.flights.map(flight => {
+        if (flight.passengers && flight.passengers.length > 0) {
+          flight.passengers = flight.passengers.map(passenger => {
+            // Mã hóa document number
+            if (passenger.document && passenger.document.number) {
+              if (!encryptionService.isEncrypted(passenger.document.number)) {
+                passenger.document.number = encryptionService.encrypt(passenger.document.number);
+              }
+            }
+            return passenger;
+          });
+        }
+        return flight;
+      });
+    }
+
+    // Mã hóa passengers array (nếu có ở root level)
+    if (this.isModified('passengers') && this.passengers && this.passengers.length > 0) {
+      this.passengers = this.passengers.map(passenger => {
+        if (passenger.document && passenger.document.number) {
+          if (!encryptionService.isEncrypted(passenger.document.number)) {
+            passenger.document.number = encryptionService.encrypt(passenger.document.number);
+          }
+        }
+        return passenger;
+      });
+    }
+
+    next();
+  } catch (error) {
+    console.error('Encryption error in Booking pre-save:', error);
+    next(error);
+  }
+});
+
+// Middleware giải mã sau query
+bookingSchema.post('find', function(docs) {
+  const encryptionService = getEncryptionService();
+  if (!encryptionService || !docs) return;
+
+  docs.forEach(doc => {
+    if (doc) {
+      decryptBookingFields(doc, encryptionService);
+    }
+  });
+});
+
+bookingSchema.post('findOne', function(doc) {
+  const encryptionService = getEncryptionService();
+  if (!encryptionService || !doc) return;
+  
+  decryptBookingFields(doc, encryptionService);
+});
+
+bookingSchema.post('findOneAndUpdate', function(doc) {
+  const encryptionService = getEncryptionService();
+  if (!encryptionService || !doc) return;
+  
+  decryptBookingFields(doc, encryptionService);
+});
+
+// Helper function để giải mã
+function decryptBookingFields(doc, encryptionService) {
+  try {
+    // Giải mã contact info
+    if (doc.contactInfo) {
+      if (doc.contactInfo.phone) {
+        doc.contactInfo.phone = encryptionService.decrypt(doc.contactInfo.phone);
+      }
+      if (doc.contactInfo.alternatePhone) {
+        doc.contactInfo.alternatePhone = encryptionService.decrypt(doc.contactInfo.alternatePhone);
+      }
+    }
+
+    // Giải mã passenger documents trong flights
+    if (doc.flights && doc.flights.length > 0) {
+      doc.flights = doc.flights.map(flight => {
+        if (flight.passengers && flight.passengers.length > 0) {
+          flight.passengers = flight.passengers.map(passenger => {
+            if (passenger.document && passenger.document.number) {
+              passenger.document.number = encryptionService.decrypt(passenger.document.number);
+            }
+            return passenger;
+          });
+        }
+        return flight;
+      });
+    }
+
+    // Giải mã passengers array (nếu có)
+    if (doc.passengers && doc.passengers.length > 0) {
+      doc.passengers = doc.passengers.map(passenger => {
+        if (passenger.document && passenger.document.number) {
+          passenger.document.number = encryptionService.decrypt(passenger.document.number);
+        }
+        return passenger;
+      });
+    }
+  } catch (error) {
+    console.error('Decryption error in Booking post-query:', error);
+  }
+}
 
 // Pre-save middleware tính loyalty points
 bookingSchema.pre('save', function(next) {

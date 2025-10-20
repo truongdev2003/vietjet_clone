@@ -1,8 +1,9 @@
-import { AlertCircle, ArrowLeft, Check, Clock, Download, Mail, Phone, Plane, Printer, X } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Check, Clock, Download, Plane, Printer, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import Footer from '../components/Footer';
 import Header from '../components/Header';
+import { MaskedContactInfo, MaskedPassengerInfo } from '../components/MaskedData';
 import axiosInstance from '../config/axios';
 import bookingService from '../services/bookingService';
 
@@ -267,25 +268,13 @@ const BookingDetailPage = () => {
                       <h3 className="font-semibold text-gray-800 mb-3">Hành khách</h3>
                       <div className="grid gap-3">
                         {flightBooking.passengers?.map((passenger, pIndex) => (
-                          <div key={pIndex} className="bg-white rounded-lg p-3 flex items-center gap-4">
-                            <div className="w-10 h-10 bg-[#EE0033] rounded-full flex items-center justify-center text-white font-semibold">
-                              {pIndex + 1}
-                            </div>
-                            <div className="flex-1">
-                              <div className="font-semibold text-gray-800">
-                                {passenger.title} {passenger.firstName} {passenger.lastName}
-                              </div>
-                              <div className="text-sm text-gray-600">
-                                {passenger.document?.type === 'passport' ? 'Hộ chiếu' : 'CCCD/CMND'}: {passenger.document?.number}
-                              </div>
-                            </div>
-                            {passenger.seatNumber && (
-                              <div className="text-right">
-                                <div className="text-sm text-gray-500">Ghế</div>
-                                <div className="font-semibold text-gray-800">{passenger.seatNumber}</div>
-                              </div>
-                            )}
-                          </div>
+                          <MaskedPassengerInfo
+                            key={pIndex}
+                            passenger={passenger}
+                            index={pIndex}
+                            showSeat={true}
+                            className="bg-white rounded-lg p-3"
+                          />
                         ))}
                       </div>
                     </div>
@@ -298,22 +287,10 @@ const BookingDetailPage = () => {
           {/* Contact Info */}
           <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
             <h2 className="text-xl font-semibold text-gray-800 mb-4">Thông tin liên hệ</h2>
-            <div className="grid md:grid-cols-2 gap-4">
-              <div className="flex items-center gap-3">
-                <Mail className="text-gray-400" size={20} />
-                <div>
-                  <div className="text-sm text-gray-500">Email</div>
-                  <div className="font-semibold text-gray-800">{booking.contactInfo?.email}</div>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <Phone className="text-gray-400" size={20} />
-                <div>
-                  <div className="text-sm text-gray-500">Số điện thoại</div>
-                  <div className="font-semibold text-gray-800">{booking.contactInfo?.phone}</div>
-                </div>
-              </div>
-            </div>
+            <MaskedContactInfo 
+              contactInfo={booking.contactInfo}
+              showIcons={true}
+            />
             
             {/* Email Confirmation Status */}
             {booking.notifications?.bookingConfirmation?.sent && (

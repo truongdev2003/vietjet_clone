@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import authService from '../services/authService';
+import twoFactorService from '../services/twoFactorService';
 
 const AuthContext = createContext(null);
 
@@ -15,6 +16,8 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [twoFactorRequired, setTwoFactorRequired] = useState(false);
+  const [twoFactorData, setTwoFactorData] = useState(null);
 
   // Initialize auth state from localStorage
   useEffect(() => {
@@ -58,6 +61,20 @@ export const AuthProvider = ({ children }) => {
       setError(null);
       const data = await authService.login(email, password, rememberMe);
       console.log('Login response:', data);
+      
+      // Check if 2FA is required
+      if (data.requiresTwoFactor) {
+        setTwoFactorRequired(true);
+        setTwoFactorData({
+          userId: data.userId,
+          email: data.email,
+          tempToken: data.tempToken,
+          expiresIn: data.expiresIn
+        });
+        return { requiresTwoFactor: true };
+      }
+      
+      // Normal login without 2FA
       setUser(data.user);
       return data;
     } catch (error) {
@@ -65,6 +82,34 @@ export const AuthProvider = ({ children }) => {
       setError(errorMessage);
       throw error;
     }
+  };
+
+  const verify2FA = async (token) => {
+    try {
+      setError(null);
+      const data = await twoFactorService.verify(
+        twoFactorData.userId,
+        token,
+        twoFactorData.tempToken
+      );
+      
+      // Successfully verified - set user and clear 2FA state
+      setUser(data.user);
+      setTwoFactorRequired(false);
+      setTwoFactorData(null);
+      
+      return data;
+    } catch (error) {
+      const errorMessage = error.response?.data?.message || 'Xác thực thất bại';
+      setError(errorMessage);
+      throw error;
+    }
+  };
+
+  const cancel2FA = () => {
+    setTwoFactorRequired(false);
+    setTwoFactorData(null);
+    setError(null);
   };
 
   const logout = async () => {
@@ -130,9 +175,13 @@ export const AuthProvider = ({ children }) => {
     user,
     loading,
     error,
+    twoFactorRequired,
+    twoFactorData,
     register,
     login,
     logout,
+    verify2FA,
+    cancel2FA,
     updateProfile,
     updateContactInfo,
     changePassword,

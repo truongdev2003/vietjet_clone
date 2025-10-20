@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import Footer from '../components/Footer';
 import Header from '../components/Header';
+import { MaskedEmail, MaskedPhone } from '../components/MaskedData';
+import TwoFactorSettings from '../components/TwoFactorSettings';
 import { useAuth } from '../context/AuthContext';
 
 const Profile = () => {
@@ -169,7 +171,14 @@ const Profile = () => {
                   <h1 className="text-2xl font-bold text-gray-900">
                     {user?.personalInfo?.title} {user?.personalInfo?.firstName} {user?.personalInfo?.lastName}
                   </h1>
-                  <p className="text-gray-600">{user?.contactInfo?.email}</p>
+                  <p className="text-gray-600">
+                    <MaskedEmail email={user?.contactInfo?.email} showIcon={false} />
+                  </p>
+                  {user?.contactInfo?.phone && (
+                    <p className="text-sm text-gray-500 mt-1">
+                      <MaskedPhone phone={user?.contactInfo?.phone} showIcon={true} />
+                    </p>
+                  )}
                   <div className="mt-2">
                     {user?.account?.isEmailVerified ? (
                       <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
@@ -220,6 +229,16 @@ const Profile = () => {
                   }`}
                 >
                   Đổi mật khẩu
+                </button>
+                <button
+                  onClick={() => setActiveTab('2fa')}
+                  className={`px-6 py-4 text-sm font-medium ${
+                    activeTab === '2fa'
+                      ? 'border-b-2 border-red-600 text-red-600'
+                      : 'text-gray-600 hover:text-gray-800'
+                  }`}
+                >
+                  Xác thực 2 yếu tố
                 </button>
               </nav>
             </div>
@@ -505,6 +524,11 @@ const Profile = () => {
                     </button>
                   </div>
                 </form>
+              )}
+
+              {/* Two-Factor Authentication Tab */}
+              {activeTab === '2fa' && (
+                <TwoFactorSettings />
               )}
             </div>
           </div>

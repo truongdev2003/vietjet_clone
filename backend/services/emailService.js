@@ -16,7 +16,7 @@ class EmailService {
       this.transporter = nodemailer.createTransport({
         host: EMAIL_HOST,
         port: EMAIL_PORT,
-        secure: true,
+        secure: false, // Port 587 sử dụng STARTTLS, không phải SSL trực tiếp
         auth: {
           user: EMAIL_USERNAME,
           pass: EMAIL_PASSWORD

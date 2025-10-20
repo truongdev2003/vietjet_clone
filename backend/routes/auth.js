@@ -4,6 +4,7 @@ const router = express.Router();
 const AuthController = require('../controllers/authController');
 const { protect, requireEmailVerification } = require('../middleware/auth');
 const { handleValidationErrors } = require('../middleware/validation');
+const { loginLimiter } = require('../middleware/security');
 const fileUploadService = require('../utils/fileUploadService');
 const {
   validateRegister,
@@ -38,7 +39,8 @@ router.post('/register',
   AuthController.register
 );
 
-router.post('/login', 
+router.post('/login',
+  loginLimiter,  // Add rate limiting protection
   validateLogin, 
   handleValidationErrors, 
   AuthController.login

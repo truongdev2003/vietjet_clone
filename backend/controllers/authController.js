@@ -227,7 +227,7 @@ class AuthController {
       let user;
       try {
         user = await User.findOne({ 'contactInfo.email': email.toLowerCase() })
-          .select('+account.password +account.loginAttempts +account.lockUntil');
+          .select('+account.password +account.loginAttempts +account.lockUntil +twoFactorAuth');
       } catch (dbError) {
         console.error('Database error finding user:', dbError);
         return next(new AppError('Không thể đăng nhập. Vui lòng thử lại.', 500));
@@ -282,7 +282,32 @@ class AuthController {
         // Continue - this is not critical
       }
 
-      // Generate tokens
+      // Check if 2FA is enabled for this user
+      if (user.twoFactorAuth && user.twoFactorAuth.isEnabled) {
+        // Generate a temporary token that's valid for 10 minutes for 2FA verification
+        const tempPayload = {
+          userId: user._id,
+          email: user.contactInfo.email,
+          purpose: '2fa-verification',
+          timestamp: Date.now()
+        };
+        
+        // Create a short-lived token for 2FA verification (10 minutes)
+        const tempToken = JWTService.generateToken(tempPayload, '10m');
+        
+        // Return response requiring 2FA
+        const response = ApiResponse.success({
+          requiresTwoFactor: true,
+          userId: user._id,
+          email: user.contactInfo.email,
+          tempToken, // Frontend will use this to call /api/2fa/verify
+          expiresIn: 600 // 10 minutes in seconds
+        }, 'Vui lòng nhập mã xác thực hai yếu tố');
+        
+        return response.send(res);
+      }
+
+      // Generate tokens (normal flow without 2FA)
       let tokens;
       try {
         const payload = {
@@ -724,11 +749,30 @@ class AuthController {
 
       let user;
       try {
-        user = await User.findByIdAndUpdate(
-          userId, 
-          { $set: updates },
-          { new: true, runValidators: true }
-        );
+        // Use findById + save() to trigger encryption middleware
+        user = await User.findById(userId);
+        
+        if (!user) {
+          return next(new AppError('Người dùng không tồn tại', 404));
+        }
+
+        // Apply updates using dot notation
+        Object.keys(updates).forEach(key => {
+          const keys = key.split('.');
+          let target = user;
+          
+          for (let i = 0; i < keys.length - 1; i++) {
+            if (!target[keys[i]]) {
+              target[keys[i]] = {};
+            }
+            target = target[keys[i]];
+          }
+          
+          target[keys[keys.length - 1]] = updates[key];
+        });
+
+        // Save to trigger pre-save middleware (encryption)
+        await user.save();
       } catch (updateError) {
         console.error('Error updating profile:', updateError);
         
@@ -738,10 +782,6 @@ class AuthController {
         }
         
         return next(new AppError('Không thể cập nhật thông tin. Vui lòng thử lại.', 500));
-      }
-
-      if (!user) {
-        return next(new AppError('Người dùng không tồn tại', 404));
       }
 
       // Remove sensitive data
@@ -843,17 +883,33 @@ class AuthController {
 
     let updatedUser;
     try {
-      updatedUser = await User.findByIdAndUpdate(
-        userId,
-        { $set: updates },
-        { new: true, runValidators: true }
-      );
-    } catch (error) {
-      return next(new AppError('Không thể cập nhật thông tin liên lạc. Vui lòng thử lại.', 500));
-    }
+      // Use findById + save() to trigger encryption middleware
+      updatedUser = await User.findById(userId);
+      
+      if (!updatedUser) {
+        return next(new AppError('Người dùng không tồn tại', 404));
+      }
 
-    if (!updatedUser) {
-      return next(new AppError('Người dùng không tồn tại', 404));
+      // Apply updates using dot notation
+      Object.keys(updates).forEach(key => {
+        const keys = key.split('.');
+        let target = updatedUser;
+        
+        for (let i = 0; i < keys.length - 1; i++) {
+          if (!target[keys[i]]) {
+            target[keys[i]] = {};
+          }
+          target = target[keys[i]];
+        }
+        
+        target[keys[keys.length - 1]] = updates[key];
+      });
+
+      // Save to trigger pre-save middleware (encryption)
+      await updatedUser.save();
+    } catch (error) {
+      console.error('Error updating contact info:', error);
+      return next(new AppError('Không thể cập nhật thông tin liên lạc. Vui lòng thử lại.', 500));
     }
 
     // Remove sensitive data

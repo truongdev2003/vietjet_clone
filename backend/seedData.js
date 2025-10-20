@@ -12,6 +12,9 @@ const Crew = require('./models/Crew');
 const Service = require('./models/Service');
 const Schedule = require('./models/Schedule');
 const Inventory = require('./models/Inventory');
+const Banner = require('./models/Banner');
+const PromoCode = require('./models/PromoCode');
+const PaymentCode = require('./models/PaymentCode');
 const { Promotion, Additional } = require('./models/Additional');
 require('dotenv').config();
 
@@ -247,6 +250,9 @@ const seedData = async () => {
       Service.deleteMany({}),
       Schedule.deleteMany({}),
       Inventory.deleteMany({}),
+      Banner.deleteMany({}),
+      PromoCode.deleteMany({}),
+      PaymentCode.deleteMany({}),
       Promotion.deleteMany({})
     ]);
     console.log('✅ Cleared existing data');
@@ -1490,6 +1496,423 @@ const seedData = async () => {
     const insertedPromotions = await Promotion.insertMany(promotions);
     console.log(`✅ Created ${insertedPromotions.length} promotions`);
 
+    // 12. Insert Banners
+    console.log('🎨 Creating banners...');
+    const banners = [];
+    
+    for (let i = 0; i < 5; i++) {
+      banners.push({
+        title: `Khuyến mãi đặc biệt ${i + 1}`,
+        description: `Mô tả khuyến mãi đặc biệt số ${i + 1} - Giảm giá lên đến ${(i + 1) * 10}%`,
+        image: `banner-${i + 1}.jpg`,
+        link: `https://vietjet.com/promotion-${i + 1}`,
+        order: i + 1,
+        isActive: true,
+        startDate: new Date(2024, 0, 1),
+        endDate: new Date(2024, 11, 31),
+        clickCount: Math.floor(Math.random() * 1000) + 100,
+        viewCount: Math.floor(Math.random() * 10000) + 1000
+      });
+    }
+    const insertedBanners = await Banner.insertMany(banners);
+    console.log(`✅ Created ${insertedBanners.length} banners`);
+
+    // 13. Insert Promo Codes
+    console.log('🎫 Creating promo codes...');
+    const promoCodes = [];
+    
+    for (let i = 0; i < 10; i++) {
+      promoCodes.push({
+        code: `VIETJET${(i + 1).toString().padStart(2, '0')}`,
+        description: `Mã giảm giá VietJet ${i + 1} - ${i % 2 === 0 ? 'Giảm theo phần trăm' : 'Giảm theo số tiền'}`,
+        type: i % 2 === 0 ? 'percentage' : 'fixed',
+        value: i % 2 === 0 ? (10 + i * 5) : (100000 + i * 50000),
+        maxDiscount: i % 2 === 0 ? (500000 + i * 100000) : undefined,
+        minAmount: 500000 + i * 100000,
+        validFrom: new Date(2024, i % 12, 1),
+        validUntil: new Date(2025, (i + 3) % 12, 28),
+        usageLimit: 100 + i * 50,
+        usageCount: i * 5,
+        perUserLimit: i % 3 + 1,
+        usedBy: [],
+        applicableRoutes: i < 5 ? [insertedRoutes[i % insertedRoutes.length]._id] : [],
+        applicableAirlines: [insertedAirlines[i % insertedAirlines.length]._id],
+        applicableSeatClasses: i % 2 === 0 ? ['economy'] : ['economy', 'business'],
+        isActive: i < 8,
+        createdBy: insertedUsers[0]._id,
+        tags: [`tag${i + 1}`, `promotion${i + 1}`],
+        category: ['seasonal', 'flash_sale', 'membership'][i % 3]
+      });
+    }
+    const insertedPromoCodes = await PromoCode.insertMany(promoCodes);
+    console.log(`✅ Created ${insertedPromoCodes.length} promo codes`);
+
+    // 14. Insert Payment Codes  
+    console.log('💸 Creating payment codes...');
+    const paymentCodes = [];
+    
+    for (let i = 0; i < 10; i++) {
+      paymentCodes.push({
+        code: `PAYCODE${(i + 1).toString().padStart(2, '0')}`,
+        name: `Mã giảm giá thanh toán ${i + 1}`,
+        description: `Mã giảm giá khi thanh toán bằng phương thức ${i % 2 === 0 ? 'thẻ tín dụng' : 'ví điện tử'}`,
+        discountType: i % 2 === 0 ? 'percentage' : 'fixed',
+        value: i % 2 === 0 ? (5 + i * 2) : (50000 + i * 25000),
+        minAmount: 500000 + i * 100000,
+        maxDiscount: i % 2 === 0 ? (200000 + i * 50000) : null,
+        startDate: new Date(2024, i % 12, 1),
+        expiryDate: new Date(2025, (i + 3) % 12, 28),
+        usageLimit: {
+          total: 500 + i * 100,
+          perUser: i % 3 + 1
+        },
+        usedCount: i * 10,
+        usedBy: [],
+        applicablePayments: [
+          i % 4 === 0 ? 'credit_card' : 
+          i % 4 === 1 ? 'bank_transfer' : 
+          i % 4 === 2 ? 'e_wallet' : 'digital_payment'
+        ],
+        conditions: {
+          minTransactionAmount: 500000 + i * 100000,
+          maxTransactionAmount: 10000000 + i * 1000000,
+          applicableRoutes: i < 5 ? [insertedRoutes[i % insertedRoutes.length]._id] : [],
+          applicableSeatClasses: i % 2 === 0 ? ['economy'] : ['economy', 'business'],
+          userTypes: i % 3 === 0 ? ['new_user'] : ['existing_user'],
+          timeRestrictions: {
+            validHours: i % 2 === 0 ? { start: '00:00', end: '23:59' } : { start: '09:00', end: '18:00' },
+            validDays: [0, 1, 2, 3, 4, 5, 6],
+            excludeHolidays: i % 3 === 0
+          }
+        },
+        isActive: i < 8,
+        createdBy: insertedUsers[0]._id,
+        approvedBy: i < 8 ? insertedUsers[1]._id : null,
+        approvedAt: i < 8 ? new Date(2024, 0, 1) : null,
+        tags: [`payment${i + 1}`, `discount${i + 1}`],
+        category: i % 2 === 0 ? 'payment_promotion' : 'loyalty_reward',
+        priority: i % 3 + 1,
+        metadata: {
+          source: 'admin_created',
+          campaign: `Campaign ${2024}_Q${Math.floor(i / 3) + 1}`,
+          notes: `Payment code ${i + 1} for payment method promotion`
+        }
+      });
+    }
+    const insertedPaymentCodes = await PaymentCode.insertMany(paymentCodes);
+    console.log(`✅ Created ${insertedPaymentCodes.length} payment codes`);
+
+    // 15. Insert Crew Members
+    console.log('👨‍✈️ Creating crew members...');
+    const crewMembers = [];
+    const crewRoles = ['captain', 'first_officer', 'cabin_crew_chief', 'cabin_crew'];
+    const crewAircraftTypes = ['Airbus A320', 'Airbus A321', 'Boeing 737'];
+    
+    for (let i = 0; i < 20; i++) {
+      const role = crewRoles[i % crewRoles.length];
+      const isPilot = role === 'captain' || role === 'first_officer';
+      
+      crewMembers.push({
+        personalInfo: {
+          employeeId: `VJ${(10000 + i).toString()}`,
+          title: role === 'captain' ? 'Capt' : role === 'first_officer' ? 'Mr' : i % 2 === 0 ? 'Mr' : 'Ms',
+          firstName: `${i % 2 === 0 ? 'Nguyễn' : 'Trần'} Văn`,
+          lastName: `${String.fromCharCode(65 + i % 26)}`,
+          dateOfBirth: new Date(1980 + (i % 20), (i % 12), (i % 28) + 1),
+          gender: i % 3 === 0 ? 'female' : 'male',
+          nationality: 'Vietnam',
+          homeBase: insertedAirports[i % 3]._id // SGN, HAN, DAD
+        },
+        contactInfo: {
+          email: `crew${i + 1}@vietjet.com`,
+          phone: `090${(1000000 + i).toString().slice(0, 7)}`,
+          emergencyContact: {
+            name: `Emergency Contact ${i + 1}`,
+            relationship: i % 2 === 0 ? 'spouse' : 'parent',
+            phone: `091${(1000000 + i).toString().slice(0, 7)}`
+          },
+          address: {
+            street: `${100 + i} Aviation Street`,
+            city: i % 2 === 0 ? 'Ho Chi Minh City' : 'Hanoi',
+            province: i % 2 === 0 ? 'Ho Chi Minh' : 'Hanoi',
+            country: 'Vietnam',
+            zipCode: `${700000 + i * 1000}`
+          }
+        },
+        position: {
+          role: role,
+          rank: i < 5 ? 'senior' : i < 10 ? 'junior' : 'trainee',
+          department: isPilot ? 'Flight Operations' : 'Cabin Services',
+          hireDate: new Date(2020 + (i % 5), (i % 12), 1),
+          probationEndDate: new Date(2020 + (i % 5), (i % 12) + 6, 1),
+          seniority: i * 100 + 1000
+        },
+        aviation: {
+          licenseNumber: `LIC${(100000 + i).toString()}`,
+          licenseType: isPilot ? (role === 'captain' ? 'ATPL' : 'CPL') : 'cabin_crew',
+          medicalCertificate: {
+            class: isPilot ? 'class_1' : 'cabin_crew',
+            expiryDate: new Date(2025, (i % 12), 28),
+            restrictions: []
+          },
+          qualifications: crewAircraftTypes.map(type => ({
+            aircraftType: type,
+            rating: 'type_rating',
+            issuedDate: new Date(2021 + (i % 4), (i % 12), 1),
+            expiryDate: new Date(2025 + (i % 4), (i % 12), 1),
+            recurrent: new Date(2024, (i % 12), 15),
+            status: 'current'
+          })),
+          restrictions: [],
+          endorsements: isPilot ? ['instrument_rating', 'multi_engine'] : ['safety_training']
+        },
+        schedule: {
+          currentStatus: ['available', 'on_duty', 'rest'][i % 3],
+          currentAssignment: i % 3 === 1 ? {
+            flight: insertedFlights[i % insertedFlights.length]._id,
+            role: role,
+            assignedAt: new Date(Date.now() - (i + 1) * 60 * 60 * 1000)
+          } : undefined,
+          dutyTime: {
+            dailyLimit: isPilot ? 14 : 13,
+            weeklyLimit: isPilot ? 100 : 95,
+            monthlyLimit: isPilot ? 900 : 850
+          },
+          restRequirements: {
+            minimumRest: isPilot ? 12 : 10,
+            weeklyRest: 36,
+            monthlyDaysOff: 8
+          }
+        },
+        performance: {
+          flightHours: isPilot ? {
+            total: 2000 + i * 100,
+            lastYear: 800 + i * 20,
+            last90Days: 200 + i * 5,
+            last30Days: 70 + i * 2,
+            pic: role === 'captain' ? 1500 + i * 80 : 0,
+            sic: role === 'first_officer' ? 2000 + i * 100 : 0
+          } : undefined,
+          ratings: {
+            overall: 4.0 + (i % 10) * 0.1,
+            punctuality: 4.2 + (i % 8) * 0.1,
+            safety: 4.5 + (i % 5) * 0.1,
+            customerService: !isPilot ? 4.3 + (i % 7) * 0.1 : undefined
+          },
+          incidents: [],
+          commendations: [`Excellence Award ${2023 + (i % 2)}`]
+        },
+        training: {
+          initialTraining: {
+            completedDate: new Date(2020 + (i % 5), (i % 12) + 3, 1),
+            provider: 'VietJet Training Center',
+            result: 'pass'
+          },
+          recurrentTraining: [{
+            type: 'annual_recurrent',
+            completedDate: new Date(2024, (i % 12), 15),
+            provider: 'VietJet Training Center',
+            result: 'pass',
+            validUntil: new Date(2025, (i % 12), 15)
+          }],
+          additionalCourses: [{
+            course: isPilot ? 'CRM Training' : 'Service Excellence',
+            completedDate: new Date(2024, (i % 6), 1),
+            provider: 'External Training Provider',
+            result: 'pass'
+          }]
+        },
+        documents: {
+          passport: {
+            number: `P${(200000000 + i).toString()}`,
+            expiryDate: new Date(2030, 11, 31),
+            issuedCountry: 'Vietnam'
+          },
+          visa: [],
+          certificates: [`Certificate ${i + 1}A`, `Certificate ${i + 1}B`]
+        },
+        payroll: {
+          baseSalary: isPilot ? (role === 'captain' ? 50000000 : 35000000) + i * 1000000 : 15000000 + i * 500000,
+          currency: 'VND',
+          allowances: {
+            flight: isPilot ? 500000 : 300000,
+            perdiem: 200000 + i * 10000,
+            housing: i % 2 === 0 ? 5000000 : 0,
+            transport: 1000000
+          },
+          deductions: {
+            tax: 0.1,
+            insurance: 0.08,
+            union: 50000
+          }
+        },
+        status: {
+          employment: i < 18 ? 'active' : 'inactive',
+          medical: 'valid',
+          training: 'current',
+          availability: ['available', 'on_leave', 'restricted'][i % 3]
+        }
+      });
+    }
+    const insertedCrewMembers = await Crew.insertMany(crewMembers);
+    console.log(`✅ Created ${insertedCrewMembers.length} crew members`);
+
+    // 16. Insert Schedules
+    console.log('📅 Creating schedules...');
+    const schedules = [];
+    
+    for (let i = 0; i < 10; i++) {
+      const captainCrew = insertedCrewMembers.find(c => c.position.role === 'captain');
+      const firstOfficerCrew = insertedCrewMembers.find(c => c.position.role === 'first_officer');
+      const cabinCrewMembers = insertedCrewMembers
+        .filter(c => c.position.role === 'cabin_crew' || c.position.role === 'cabin_crew_chief')
+        .slice(0, 4);
+
+      schedules.push({
+        code: `SCH${(100 + i).toString().padStart(3, '0')}`,
+        name: `Schedule ${i + 1} - ${insertedRoutes[i % insertedRoutes.length].code || 'Route'}`,
+        route: insertedRoutes[i % insertedRoutes.length]._id,
+        airline: insertedAirlines[i % insertedAirlines.length]._id,
+        type: ['regular', 'seasonal', 'charter'][i % 3],
+        
+        validity: {
+          startDate: new Date(2024, 0, 1),
+          endDate: new Date(2024, 11, 31),
+          timezone: 'Asia/Ho_Chi_Minh'
+        },
+        
+        frequency: {
+          type: ['daily', 'weekly', 'bi_weekly'][i % 3],
+          daysOfWeek: i % 2 === 0 ? [1, 2, 3, 4, 5] : [0, 1, 2, 3, 4, 5, 6],
+          dailyFrequency: 1 + (i % 3),
+          seasonal: {
+            isActive: i % 3 === 0,
+            seasons: i % 3 === 0 ? [{
+              name: 'summer',
+              startMonth: 6,
+              endMonth: 8,
+              frequency: 2
+            }] : []
+          }
+        },
+        
+        flights: [{
+          flightNumber: `VJ${(200 + i).toString()}`,
+          departure: {
+            time: `${String(6 + (i % 18)).padStart(2, '0')}:30`,
+            day: 1 + (i % 6) // Monday to Saturday
+          },
+          arrival: {
+            time: `${String(8 + (i % 18)).padStart(2, '0')}:45`,
+            day: 1 + (i % 6)
+          },
+          aircraft: insertedAircraft[i % insertedAircraft.length]._id,
+          crew: {
+            captain: captainCrew ? captainCrew._id : null,
+            firstOfficer: firstOfficerCrew ? firstOfficerCrew._id : null,
+            cabinCrew: cabinCrewMembers.map(crew => crew._id)
+          }
+        }],
+        
+        slots: {
+          departure: {
+            slotTime: `${String(6 + (i % 18)).padStart(2, '0')}:30`,
+            coordinator: 'VATM',
+            confirmed: i < 8
+          },
+          arrival: {
+            slotTime: `${String(8 + (i % 18)).padStart(2, '0')}:45`,
+            coordinator: 'VATM',
+            confirmed: i < 8
+          }
+        },
+        
+        resources: {
+          aircraft: {
+            required: [{
+              type: insertedAircraft[i % insertedAircraft.length]._id,
+              count: 1,
+              preference: 'primary'
+            }],
+            utilization: {
+              hoursPerDay: 8 + i * 2,
+              rotationsPerDay: 2 + (i % 3),
+              turnaroundTime: 45 + i * 5
+            }
+          },
+          crew: {
+            required: {
+              captains: 1,
+              firstOfficers: 1,
+              cabinCrew: 4
+            },
+            qualifications: ['type_rating', 'instrument_rating'],
+            scheduling: {
+              dutyPattern: 'regular',
+              maxDutyHours: 14,
+              restRequirements: 12
+            }
+          },
+          infrastructure: {
+            gates: {
+              departure: [`A${i + 1}`, `B${i + 1}`],
+              arrival: [`C${i + 1}`, `D${i + 1}`]
+            },
+            groundEquipment: ['pushback_tug', 'gpu', 'air_start_unit']
+          }
+        },
+        
+        performance: {
+          punctuality: {
+            target: 85,
+            actual: 80 + i * 2,
+            onTimePerformance: (80 + i * 2) / 100
+          },
+          utilization: {
+            planned: 85,
+            actual: 80 + i,
+            efficiency: (80 + i) / 85
+          },
+          revenue: {
+            target: 1000000000 + i * 100000000,
+            actual: 900000000 + i * 90000000,
+            loadFactor: 0.75 + i * 0.02
+          }
+        },
+        
+        restrictions: {
+          operational: i % 4 === 0 ? ['weather_dependent'] : [],
+          regulatory: [],
+          commercial: []
+        },
+        
+        approval: {
+          status: i < 8 ? 'approved' : 'pending',
+          approvedBy: i < 8 ? insertedUsers[0]._id : null,
+          approvedAt: i < 8 ? new Date(2024, 0, 1) : null,
+          authority: 'CAAV',
+          validUntil: new Date(2025, 11, 31)
+        },
+        
+        status: {
+          operational: i < 8 ? 'active' : 'suspended',
+          commercial: i < 8 ? 'published' : 'draft',
+          lastReview: new Date(2024, i % 12, 1),
+          nextReview: new Date(2024, (i + 3) % 12, 1)
+        },
+        
+        metadata: {
+          version: '1.0',
+          createdBy: insertedUsers[0]._id,
+          lastModifiedBy: insertedUsers[0]._id,
+          tags: [`schedule_${i + 1}`, 'regular_service'],
+          notes: `Schedule ${i + 1} for route operations`
+        }
+      });
+    }
+    const insertedSchedules = await Schedule.insertMany(schedules);
+    console.log(`✅ Created ${insertedSchedules.length} schedules`);
+
     // Print summary
     console.log('\n🎉 === SEED DATA COMPLETED SUCCESSFULLY === 🎉');
     console.log('📊 Data Summary:');
@@ -1500,11 +1923,16 @@ const seedData = async () => {
     console.log(`   👥 Users: ${insertedUsers.length} (${insertedUsers.filter(u => u.isGuest).length} guests)`);
     console.log(`   💰 Fares: ${insertedFares.length}`);
     console.log(`   ✈️  Flights: ${insertedFlights.length}`);
-    console.log(`   � Inventories: ${insertedInventories.length}`);
-    console.log(`   �📖 Bookings: ${insertedBookings.length}`);
+    console.log(`   💺 Inventories: ${insertedInventories.length}`);
+    console.log(`   📖 Bookings: ${insertedBookings.length}`);
     console.log(`   💳 Payments: ${insertedPayments.length}`);
     console.log(`   🛎️  Services: ${insertedServices.length}`);
     console.log(`   🎁 Promotions: ${insertedPromotions.length}`);
+    console.log(`   🎨 Banners: ${insertedBanners.length}`);
+    console.log(`   🎫 Promo Codes: ${insertedPromoCodes.length}`);
+    console.log(`   💸 Payment Codes: ${insertedPaymentCodes.length}`);
+    console.log(`   👨‍✈️ Crew Members: ${insertedCrewMembers.length}`);
+    console.log(`   📅 Schedules: ${insertedSchedules.length}`);
     
     console.log('\n🔐 Sample Login Credentials:');
     console.log('   Regular Users:');

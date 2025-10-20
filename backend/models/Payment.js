@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { getEncryptionService } = require('../services/encryptionService');
 
 // Schema cho payment method details
 const paymentMethodSchema = new mongoose.Schema({
@@ -554,6 +555,90 @@ function generatePaymentReference() {
   const timestamp = Date.now().toString().slice(-6);
   const random = Math.random().toString(36).substring(2, 6).toUpperCase();
   return `${timestamp}${random}`;
+}
+
+// Pre-save middleware để mã hóa dữ liệu nhạy cảm
+paymentSchema.pre('save', async function(next) {
+  const encryptionService = getEncryptionService();
+  
+  if (!encryptionService) {
+    console.warn('⚠️  Encryption service not available, saving payment without encryption');
+    return next();
+  }
+
+  try {
+    // Mã hóa card holder name
+    if (this.isModified('paymentMethod.card') && this.paymentMethod.card) {
+      if (this.paymentMethod.card.holderName && !encryptionService.isEncrypted(this.paymentMethod.card.holderName)) {
+        this.paymentMethod.card.holderName = encryptionService.encrypt(this.paymentMethod.card.holderName);
+      }
+    }
+
+    // Mã hóa bank transfer info
+    if (this.isModified('paymentMethod.bankTransfer') && this.paymentMethod.bankTransfer) {
+      if (this.paymentMethod.bankTransfer.accountHolder && !encryptionService.isEncrypted(this.paymentMethod.bankTransfer.accountHolder)) {
+        this.paymentMethod.bankTransfer.accountHolder = encryptionService.encrypt(this.paymentMethod.bankTransfer.accountHolder);
+      }
+      if (this.paymentMethod.bankTransfer.accountNumber && !encryptionService.isEncrypted(this.paymentMethod.bankTransfer.accountNumber)) {
+        this.paymentMethod.bankTransfer.accountNumber = encryptionService.encrypt(this.paymentMethod.bankTransfer.accountNumber);
+      }
+    }
+
+    next();
+  } catch (error) {
+    console.error('Encryption error in Payment pre-save:', error);
+    next(error);
+  }
+});
+
+// Post-query middleware để giải mã
+paymentSchema.post('find', function(docs) {
+  const encryptionService = getEncryptionService();
+  if (!encryptionService || !docs) return;
+
+  docs.forEach(doc => {
+    if (doc) {
+      decryptPaymentFields(doc, encryptionService);
+    }
+  });
+});
+
+paymentSchema.post('findOne', function(doc) {
+  const encryptionService = getEncryptionService();
+  if (!encryptionService || !doc) return;
+  
+  decryptPaymentFields(doc, encryptionService);
+});
+
+paymentSchema.post('findOneAndUpdate', function(doc) {
+  const encryptionService = getEncryptionService();
+  if (!encryptionService || !doc) return;
+  
+  decryptPaymentFields(doc, encryptionService);
+});
+
+// Helper function để giải mã
+function decryptPaymentFields(doc, encryptionService) {
+  try {
+    // Giải mã card holder name
+    if (doc.paymentMethod && doc.paymentMethod.card) {
+      if (doc.paymentMethod.card.holderName) {
+        doc.paymentMethod.card.holderName = encryptionService.decrypt(doc.paymentMethod.card.holderName);
+      }
+    }
+
+    // Giải mã bank transfer info
+    if (doc.paymentMethod && doc.paymentMethod.bankTransfer) {
+      if (doc.paymentMethod.bankTransfer.accountHolder) {
+        doc.paymentMethod.bankTransfer.accountHolder = encryptionService.decrypt(doc.paymentMethod.bankTransfer.accountHolder);
+      }
+      if (doc.paymentMethod.bankTransfer.accountNumber) {
+        doc.paymentMethod.bankTransfer.accountNumber = encryptionService.decrypt(doc.paymentMethod.bankTransfer.accountNumber);
+      }
+    }
+  } catch (error) {
+    console.error('Decryption error in Payment post-query:', error);
+  }
 }
 
 // Method to update overall status

@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import bookingService from '../services/bookingService';
 import '../styles/MyBookings.css';
 import '../styles/MyBookingsAccordion.css';
+import DataMaskingUtils from '../utils/dataMasking';
 
 const MyBookingsPage = () => {
   const { user } = useAuth();
@@ -443,6 +444,11 @@ const MyBookingsPage = () => {
                                 </div>
                                 <div className="passenger-details">
                                   <span className="passenger-type">{passenger.passengerType}</span>
+                                  {passenger.document?.number && (
+                                    <span className="document-number">
+                                      {passenger.document.type === 'passport' ? 'Hộ chiếu' : 'CCCD'}: {DataMaskingUtils.maskDocumentNumber(passenger.document.number)}
+                                    </span>
+                                  )}
                                   {passenger.ticket?.seatNumber && (
                                     <span className="seat-number">Ghế: {passenger.ticket.seatNumber}</span>
                                   )}

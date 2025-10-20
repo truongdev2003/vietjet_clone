@@ -1,12 +1,17 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import Footer from '../components/Footer';
 import Header from '../components/Header';
+import TwoFactorVerification from '../components/TwoFactorVerification';
 import { useAuth } from '../context/AuthContext';
 
 const Login = () => {
   const navigate = useNavigate();
-  const { login, error } = useAuth();
+  const location = useLocation();
+  const { login, error, twoFactorRequired, twoFactorData, cancel2FA } = useAuth();
+  
+  // Get verification success message from location state
+  const verificationMessage = location.state?.message;
   
   const [formData, setFormData] = useState({
     email: '',
@@ -29,13 +34,29 @@ const Login = () => {
     setLoading(true);
 
     try {
-      await login(formData.email, formData.password, formData.rememberMe);
-      navigate('/'); // Redirect to home after successful login
+      const result = await login(formData.email, formData.password, formData.rememberMe);
+      
+      // If 2FA is not required, navigate to home
+      if (!result.requiresTwoFactor) {
+        navigate('/');
+      }
+      // If 2FA is required, the modal will be shown automatically via twoFactorRequired state
     } catch (error) {
       console.error('Login error:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  // Handle successful 2FA verification
+  const handle2FASuccess = (tokens, user) => {
+    // Navigate to home after successful 2FA
+    navigate('/');
+  };
+
+  // Handle 2FA cancellation
+  const handle2FACancel = () => {
+    cancel2FA();
   };
 
   return (
@@ -56,6 +77,12 @@ const Login = () => {
           </div>
 
           <form className="mt-8 space-y-6 bg-white p-8 rounded-lg shadow-md" onSubmit={handleSubmit}>
+            {verificationMessage && (
+              <div className="bg-green-50 border border-green-400 text-green-700 px-4 py-3 rounded relative" role="alert">
+                <span className="block sm:inline">{verificationMessage}</span>
+              </div>
+            )}
+            
             {error && (
               <div className="bg-red-50 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
                 <span className="block sm:inline">{error}</span>
@@ -158,6 +185,19 @@ const Login = () => {
           </form>
         </div>
       </div>
+
+      {/* 2FA Verification Modal */}
+      {twoFactorRequired && twoFactorData && (
+        <TwoFactorVerification
+          userId={twoFactorData.userId}
+          email={twoFactorData.email}
+          tempToken={twoFactorData.tempToken}
+          expiresIn={twoFactorData.expiresIn}
+          onSuccess={handle2FASuccess}
+          onCancel={handle2FACancel}
+        />
+      )}
+
       <Footer />
     </>
   );

@@ -16,6 +16,14 @@ const authService = {
   // Login user
   login: async (email, password, rememberMe = false) => {
     const response = await api.post(AUTH_ENDPOINTS.LOGIN, { email, password, rememberMe });
+    
+    // Check if 2FA is required
+    if (response.data.data.requiresTwoFactor) {
+      // Don't save tokens yet, return 2FA data
+      return response.data.data;
+    }
+    
+    // Normal login - save tokens
     if (response.data.data.tokens) {
       localStorage.setItem('accessToken', response.data.data.tokens.accessToken);
       localStorage.setItem('refreshToken', response.data.data.tokens.refreshToken);
