@@ -1,0 +1,12 @@
+node_modules
+npm-debug.log
+.env
+.git
+.gitignore
+logs/*
+uploads/avatars/*
+uploads/documents/*
+uploads/temp/*
+*.md
+.vscode
+.idea
